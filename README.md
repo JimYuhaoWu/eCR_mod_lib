@@ -9,39 +9,72 @@ from scratch at any future point.
 
 ---
 
+## Current library size
+
+**8,675 records** — last built 2026-05-30
+
+| Type | Count |
+|---|---|
+| DBD | ~3,250 |
+| ED | ~4,900 |
+| CR | ~540 |
+
+| Validation level | Meaning |
+|---|---|
+| `screen-validated` | Functionally tested in a pooled screen |
+| `ChIP-validated` | Experimentally characterized (Gal4-fusion assays, ChIP-seq) |
+| `motif-only` | PWM/motif available (JASPAR); no direct binding evidence |
+| `predicted` | Computational prediction only |
+| `structurally-resolved` | Crystal or cryo-EM structure available |
+
+---
+
 ## Structure
 
 ```
 module_library/
 ├── config/
-│   └── sources.yaml          # all external URLs, versions, DOIs
+│   └── sources.yaml               # all external URLs, versions, DOIs
 ├── scripts/
-│   ├── utils.py              # logging, checksums, manifests
-│   ├── schema.py             # SQLite schema + ModuleLibrary class
-│   ├── 01_fetch_dbd.py       # AnimalTFDB + UniProt + JASPAR
-│   ├── 02_seed_ed.py         # canonical EDs + screen data
-│   ├── 03_fetch_cr.py        # EpiFactors + curated CRs
-│   ├── 04_build_library.py   # assemble SQLite + TSV export
-│   └── 05_validate.py        # QC checks + report
+│   ├── utils.py                   # logging, checksums, manifests
+│   ├── schema.py                  # SQLite schema + ModuleLibrary class
+│   ├── 01_fetch_dbd.py            # AnimalTFDB + UniProt + JASPAR
+│   ├── 02_seed_ed.py              # canonical EDs + screen data
+│   ├── 03_fetch_cr.py             # EpiFactors + curated CRs
+│   ├── 04_build_library.py        # assemble SQLite + TSV export
+│   └── 05_validate.py             # QC checks + report
+├── literature/
+│   ├── papers.yaml                # master record of all assessed papers
+│   ├── search_queries.yaml        # PubMed + Semantic Scholar queries
+│   ├── 01_search.py               # fetch new candidates
+│   ├── 02_triage.py               # score + generate review report
+│   ├── 03_record.py               # validate review decisions
+│   ├── candidates/                # raw JSON search results (git-ignored)
+│   └── reviews/                   # markdown review reports (committed)
 ├── data/
-│   ├── raw/                  # downloaded files (git-ignored; manifested)
-│   │   └── download_manifest.json   # checksums + URLs (commit this)
-│   ├── processed/            # intermediate TSVs (git-ignored)
-│   └── manual/
-│       ├── ed_curated.yaml              # canonical EDs
-│       ├── cr_curated.yaml              # curated CRs
-│       ├── Alerasool_2022_SupTable.xlsx  # screen data (committed)
-│       ├── DelRosso_2023_SupTable.xlsx   # screen data (committed)
-│       ├── Compendium_2021_SupTable.xlsx # TF effector domain compendium (committed)
-│       ├── HiTEff_SupTable.xlsx          # high-throughput effector screen (committed)
-│       └── EpiGenes_main.csv             # EpiFactors v2.0 main table (committed)
+│   ├── raw/                       # downloaded files (git-ignored; manifested)
+│   │   ├── animaltfdb/            # AnimalTFDB .txt files (committed)
+│   │   └── download_manifest.json # checksums + URLs (committed)
+│   ├── processed/                 # intermediate TSVs (git-ignored)
+│   └── manual/                    # supplementary files (committed)
+│       ├── ed_curated.yaml
+│       ├── cr_curated.yaml
+│       ├── Alerasool_2022_SupTable.xlsx
+│       ├── DelRosso_2023_SupTable.xlsx
+│       ├── Compendium_2021_SupTable.xlsx
+│       ├── HiTEff_SupTable.xlsx
+│       ├── Staller_2022_mmc2.csv
+│       ├── Staller_2022_mmc4.csv
+│       ├── Staller_2022_mmc5.csv
+│       └── EpiGenes_main.csv
 ├── library/
-│   ├── module_library.db     # SQLite (git-ignored)
-│   ├── module_library.tsv    # TSV snapshot (commit this)
-│   └── build_manifest.json   # full build provenance (commit this)
-├── logs/                     # timestamped run logs (git-ignored)
-├── requirements.txt          # pip dependencies
-├── env.yml                   # conda environment
+│   ├── module_library.db          # SQLite (git-ignored)
+│   ├── module_library.tsv         # TSV snapshot (committed)
+│   ├── build_manifest.json        # full build provenance (committed)
+│   └── qc_report.tsv              # QC check results (committed)
+├── logs/                          # timestamped run logs (git-ignored)
+├── requirements.txt               # pip dependencies
+├── env.yml                        # conda environment
 └── README.md
 ```
 
@@ -56,10 +89,6 @@ cd eCR_mod_lib
 
 # Install dependencies (pip)
 pip install -r requirements.txt
-
-# Or with conda
-mamba env create -f env.yml
-conda activate module_library
 ```
 
 Requires Python 3.8+.
@@ -71,20 +100,11 @@ Requires Python 3.8+.
 Run scripts in order from the project root:
 
 ```bash
-# Fetch DBDs from AnimalTFDB (files committed), UniProt sequences, JASPAR motif IDs
-python scripts/01_fetch_dbd.py
-
-# Seed canonical EDs + screen data (Alerasool 2022, DelRosso 2023)
-python scripts/02_seed_ed.py
-
-# Fetch CRs from EpiFactors v2.0 + curated YAML
-python scripts/03_fetch_cr.py
-
-# Assemble into SQLite + export TSV
-python scripts/04_build_library.py
-
-# QC checks
-python scripts/05_validate.py
+python scripts/01_fetch_dbd.py        # AnimalTFDB files committed; fetches UniProt + JASPAR
+python scripts/02_seed_ed.py          # all ED sources
+python scripts/03_fetch_cr.py         # EpiFactors + curated CRs
+python scripts/04_build_library.py    # assemble SQLite + export TSV
+python scripts/05_validate.py         # QC checks + report
 ```
 
 For a quick test run (no network calls, 10 TFs per species):
@@ -107,21 +127,31 @@ python scripts/04_build_library.py --rebuild
 
 ## Data sources
 
-| Module type | Source | Version | DOI |
-|---|---|---|---|
-| DBD | [AnimalTFDB](https://guolab.wchscu.cn/AnimalTFDB4/#/Download) | 4.0 | 10.1093/nar/gkad625 |
-| DBD sequences | [UniProt](https://www.uniprot.org) | 2024_02 | — |
-| DBD motifs | [JASPAR](https://jaspar.elixir.no) | 2024 | 10.1093/nar/gkad1059 |
-| ED (curated) | `data/manual/ed_curated.yaml` | manual_v1 | — |
-| ED (screen) | [Alerasool et al. 2022](https://doi.org/10.1016/j.molcel.2021.12.005) — tAD-seq sheet | — | 10.1016/j.molcel.2021.12.005 |
-| ED (screen) | [DelRosso et al. 2023](https://doi.org/10.1038/s41586-023-05906-y) — Activation + Repression Domains sheets | — | 10.1038/s41586-023-05906-y |
-| ED (ChIP-validated) | [Compendium of human TF effector domains, 2021](https://doi.org/10.1016/j.molcel.2021.11.007) — Table S2, Activity H+M only | — | 10.1016/j.molcel.2021.11.007 |
-| ED (screen) | [Tycko et al. 2020](https://doi.org/10.1016/j.cell.2020.11.024) — NucAct_data + NucRepr_data sheets | — | 10.1016/j.cell.2020.11.024 |
-| CR (curated) | `data/manual/cr_curated.yaml` | manual_v1 | — |
-| CR (EpiFactors) | [EpiFactors](https://epifactors.autosome.org) — EpiGenes_main.csv | 2.0 | 10.1093/nar/gkab1193 |
+### DBD
 
-All supplementary files are committed to `data/manual/` for reproducibility.
-The AnimalTFDB `.txt` files are committed to `data/raw/animaltfdb/`.
+| Source | Version | DOI |
+|---|---|---|
+| [AnimalTFDB 4.0](https://guolab.wchscu.cn/AnimalTFDB4/#/Download) | 4.0 | 10.1093/nar/gkad625 |
+| [UniProt](https://www.uniprot.org) (sequences) | 2024_02 | — |
+| [JASPAR](https://jaspar.elixir.no) (motif IDs) | 2024 | 10.1093/nar/gkad1059 |
+
+### ED
+
+| Source | Description | Validation | DOI |
+|---|---|---|---|
+| `ed_curated.yaml` | Canonical EDs (VP64, VPR, KRAB, p65, etc.) | ChIP-validated | manual |
+| [Alerasool et al. 2022](https://doi.org/10.1016/j.molcel.2021.12.005) | tAD-seq screen, hit activators | screen-validated | 10.1016/j.molcel.2021.12.005 |
+| [DelRosso et al. 2023](https://doi.org/10.1038/s41586-023-05906-y) | Activation + Repression Domains sheets | screen-validated | 10.1038/s41586-023-05906-y |
+| [Tycko et al. 2020](https://doi.org/10.1016/j.cell.2020.11.024) | NucAct + NucRepr Pfam-domain screens | screen-validated | 10.1016/j.cell.2020.11.024 |
+| [Compendium 2021](https://doi.org/10.1016/j.molcel.2021.11.007) | Table S2, Activity H+M (404 AD + 324 RD) | ChIP-validated | 10.1016/j.molcel.2021.11.007 |
+| [Staller et al. 2022](https://doi.org/10.1016/j.cels.2022.01.002) | 50 predicted novel ADs (Z≥0.5) + 5 WT domains | screen-validated | 10.1016/j.cels.2022.01.002 |
+
+### CR
+
+| Source | Description | DOI |
+|---|---|---|
+| `cr_curated.yaml` | Key CRs with full annotation | manual |
+| [EpiFactors 2.0](https://epifactors.autosome.org) | EpiGenes_main.csv, enzymatic CRs only | 10.1093/nar/gkab1193 |
 
 ---
 
@@ -131,16 +161,55 @@ The AnimalTFDB `.txt` files are committed to `data/raw/animaltfdb/`.
 |---|---|---|
 | `data/manual/*.yaml` | ✓ yes | human-curated source of truth |
 | `data/manual/*.xlsx` | ✓ yes | supplementary tables; fixed version |
-| `data/manual/*.csv` | ✓ yes | EpiFactors main table; fixed version |
+| `data/manual/*.csv` | ✓ yes | supplementary tables + EpiFactors |
 | `data/raw/animaltfdb/*.txt` | ✓ yes | AnimalTFDB TF lists; fixed version |
 | `data/raw/download_manifest.json` | ✓ yes | URL + checksum record |
 | `data/raw/uniprot/*.fasta` | ✗ no | re-downloadable |
 | `data/raw/jaspar/*.json` | ✗ no | re-downloadable |
 | `data/processed/*.tsv` | ✗ no | regenerated from scripts |
 | `library/module_library.tsv` | ✓ yes | human-readable snapshot; enables git diff |
-| `library/module_library.db` | ✗ no | binary; regenerated from TSV |
+| `library/module_library.db` | ✗ no | binary; regenerated |
 | `library/build_manifest.json` | ✓ yes | full provenance record |
+| `library/qc_report.tsv` | ✓ yes | QC summary |
+| `literature/papers.yaml` | ✓ yes | master record of paper decisions |
+| `literature/search_queries.yaml` | ✓ yes | search configuration |
+| `literature/reviews/*.md` | ✓ yes | review reports |
+| `literature/candidates/*.json` | ✗ no | re-generatable search results |
 | `logs/` | ✗ no | per-run logs |
+
+---
+
+## Literature search
+
+Semi-automated pipeline for discovering new papers. Run every 1–3 months.
+
+```bash
+# 1. Query PubMed + Semantic Scholar; deduplicate against known papers
+python literature/01_search.py
+
+# 2. Score candidates and generate a Markdown review report
+python literature/02_triage.py
+# → literature/reviews/review_YYYY-MM-DD.md
+
+# 3. Add accepted/rejected entries to literature/papers.yaml, then validate:
+python literature/03_record.py
+```
+
+**Rejection patterns established so far** (auto-filtered by triage scorer):
+- Inhibitor / drug / therapeutic studies
+- Cancer biology without domain characterization
+- Synthetic lethality studies
+- Non-human/mouse organisms (plants, yeast, bacteria, Drosophila, etc.)
+- Reviews and methods book chapters
+- Assembly/complex stoichiometry screens (wrong question)
+- RAS/signaling effector domains (not transcriptional effectors)
+
+**After accepting a paper:** place its supplementary data in `data/manual/`,
+add an entry to `SCREEN_FILES` in the relevant script, and re-run the pipeline.
+Update `status: integrated` in `papers.yaml` when done.
+
+See [`literature/papers.yaml`](literature/papers.yaml) for all decisions.
+See [`literature/search_queries.yaml`](literature/search_queries.yaml) to tune search terms.
 
 ---
 
@@ -166,18 +235,6 @@ with ModuleLibrary("library/module_library.db") as lib:
 
 ---
 
-## Validation levels
-
-| Level | Meaning |
-|---|---|
-| `predicted` | Computational prediction only; no experimental support |
-| `motif-only` | PWM/motif available (e.g. JASPAR); no direct binding evidence |
-| `ChIP-validated` | Genome-wide binding data available (ChIP-seq / CUT&RUN) |
-| `screen-validated` | Functionally tested in a pooled screen (Alerasool 2022, DelRosso 2023) |
-| `structurally-resolved` | Crystal or cryo-EM structure available for the domain |
-
----
-
 ## Adding entries manually
 
 Add a new block to `data/manual/ed_curated.yaml` or `cr_curated.yaml`, then re-run:
@@ -187,33 +244,6 @@ python scripts/02_seed_ed.py   # or 03_fetch_cr.py
 python scripts/04_build_library.py
 python scripts/05_validate.py
 ```
-
-The `date_modified` field is updated automatically.
-
----
-
-## Literature search
-
-A semi-automated pipeline for discovering new papers to integrate into the library.
-Run every 1–3 months from the project root:
-
-```bash
-# 1. Query PubMed + Semantic Scholar; deduplicate against known papers
-python literature/01_search.py
-
-# 2. Score candidates and generate a Markdown review report
-python literature/02_triage.py
-# → opens literature/reviews/review_YYYY-MM-DD.md for human review
-
-# 3. Edit literature/papers.yaml: add accepted/rejected entries from the report
-#    Then validate:
-python literature/03_record.py
-```
-
-**After accepting a paper:** add its supplementary data to `data/manual/`, wire it
-into `SCREEN_FILES` in the relevant script, and re-run the pipeline.
-
-See `literature/search_queries.yaml` to add or tune search terms.
 
 ---
 
