@@ -67,6 +67,14 @@ papers:
     status: integrated
     module_source: "EpiGenes_main.csv"
 
+  - doi: "10.1590/1414-431x2023e12854"
+    title: "Evidence of a synthetic lethality interaction between SETDB1 histone methyltransferase and CHD4 chromatin remodeling protein in a triple negative breast cancer cell line"
+    year: 2023
+    journal: "Brazilian Journal of Medical and Biological Research"
+    categories: [CR]
+    status: rejected
+    notes: "Cancer synthetic lethality study — no domain sequences or activity scores; CRISPR knockout, not domain engineering"
+
   - doi: "10.1038/s41467-025-60424-x"
     title: "CRISPR screen decodes SWI/SNF chromatin remodeling complex assembly"
     year: 2025

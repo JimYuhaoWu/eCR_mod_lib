@@ -72,6 +72,8 @@ SCORE_WEIGHTS: dict[str, float] = {
     "correction": -3.0,
     # Loss-of-function / disease / inhibitor studies — not domain characterisation
     "complex assembly": -2.0,
+    "synthetic lethality": -3.0,
+    "synthetic lethal": -3.0,
     "loss of function": -1.5,
     "inhibitor": -1.5,
     "drug": -1.5,
