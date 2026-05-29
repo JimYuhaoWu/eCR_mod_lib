@@ -215,6 +215,7 @@ SCREEN_FILES = {
         "col_fragment": "Domain",
         "col_sequence": "Sequence",
         "col_score": "Max avg pEF",
+        "col_score_fallback": "Max avg PGK",
         "col_hit": None,
         "hit_value": None,
         "subtype_override": "repressor",
@@ -247,9 +248,9 @@ def process_screen_data(log) -> list[dict]:
         try:
             sheet = info.get("sheet")
             if info["path"].suffix == ".xlsx":
-                df = pd.read_excel(info["path"], sheet_name=sheet, dtype=str)
+                df = pd.read_excel(info["path"], sheet_name=sheet)
             else:
-                df = pd.read_csv(info["path"], sep="\t", dtype=str)
+                df = pd.read_csv(info["path"], sep="\t")
         except Exception as e:
             log.error(f"[{screen_name}] parse error: {e}")
             continue
@@ -278,12 +279,25 @@ def process_screen_data(log) -> list[dict]:
             seq = str(row.get(col_s, "")).strip() if col_s and col_s in df.columns else None
             if seq in (None, "nan", ""):
                 seq = None
-            score = None
-            if col_q and col_q in df.columns:
+            def _parse_score(val):
                 try:
-                    score = float(row[col_q])
+                    f = float(val)
+                    return None if pd.isna(f) else f
                 except (ValueError, TypeError):
-                    pass
+                    return None
+
+            score = None
+            col_score_used = col_q
+            if col_q and col_q in df.columns:
+                score = _parse_score(row[col_q])
+            # Fall back to secondary score column if primary is null
+            if score is None:
+                col_fb = info.get("col_score_fallback")
+                if col_fb and col_fb in df.columns:
+                    fb_score = _parse_score(row[col_fb])
+                    if fb_score is not None:
+                        score = fb_score
+                        col_score_used = col_fb
 
             if info.get("subtype_override"):
                 subtype = info["subtype_override"]
@@ -301,7 +315,7 @@ def process_screen_data(log) -> list[dict]:
                 "sequence_aa": seq,
                 "length_aa": len(seq) if seq else None,
                 "quantitative_metric": score,
-                "quantitative_metric_label": col_q,
+                "quantitative_metric_label": col_score_used,
                 "quantitative_metric_source": info["doi"],
                 "validation_level": "screen-validated",
                 "source": screen_name,
