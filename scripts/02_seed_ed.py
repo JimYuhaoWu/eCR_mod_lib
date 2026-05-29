@@ -172,15 +172,20 @@ def process_curated_eds(cfg_path: Path, session: requests.Session,
 
 SCREEN_FILES = {
     "Alerasool_2022": {
-        "path": MANUAL_DIR / "Alerasool_2022_SupTable.tsv",
-        "doi": "10.1038/s41588-022-01119-9",
-        "col_name": "AD_name",
+        "path": MANUAL_DIR / "Alerasool_2022_SupTable.xlsx",
+        "doi": "10.1016/j.molcel.2021.12.005",
+        "sheet": "tAD-seq",
+        "col_name": None,           # built from Gene + Fragment below
+        "col_gene": "Gene",
+        "col_fragment": "Fragment",
         "col_sequence": "Sequence",
-        "col_score": "log2FC_enrichment",
+        "col_score": "logFC high GFP",
+        "col_hit": "Hit high GFP",
+        "hit_value": "hit",
         "notes": (
-            "Download Supplementary Table 2 from "
-            "https://doi.org/10.1038/s41588-022-01119-9 "
-            "and save as data/manual/Alerasool_2022_SupTable.tsv"
+            "Download mmc2.xlsx (Supplementary Table 2) from "
+            "https://doi.org/10.1016/j.molcel.2021.12.005 "
+            "and save as data/manual/Alerasool_2022_SupTable.xlsx"
         ),
     },
     "DelRosso_2023": {
@@ -216,18 +221,34 @@ def process_screen_data(log) -> list[dict]:
 
         log.info(f"[{screen_name}] parsing {info['path']}")
         try:
-            df = pd.read_csv(info["path"], sep="\t", dtype=str)
+            sheet = info.get("sheet")
+            if info["path"].suffix == ".xlsx":
+                df = pd.read_excel(info["path"], sheet_name=sheet, dtype=str)
+            else:
+                df = pd.read_csv(info["path"], sep="\t", dtype=str)
         except Exception as e:
             log.error(f"[{screen_name}] parse error: {e}")
             continue
 
+        # Filter to hits only if a hit column is specified
+        col_hit = info.get("col_hit")
+        hit_val = info.get("hit_value")
+        if col_hit and col_hit in df.columns and hit_val:
+            df = df[df[col_hit].str.strip().str.lower() == hit_val.lower()]
+
         col_n = info["col_name"]
         col_s = info.get("col_sequence")
         col_q = info.get("col_score")
+        col_gene = info.get("col_gene")
+        col_frag = info.get("col_fragment")
 
         for _, row in df.iterrows():
-            name = str(row.get(col_n, "")).strip()
-            if not name or name.lower() == "nan":
+            # Build name from gene+fragment if col_name is None
+            if col_n is None and col_gene and col_frag:
+                name = f"{str(row.get(col_gene, '')).strip()}_{str(row.get(col_frag, '')).strip()}"
+            else:
+                name = str(row.get(col_n, "")).strip()
+            if not name or name.lower() in ("nan", "_", "nan_nan"):
                 continue
 
             seq = str(row.get(col_s, "")).strip() if col_s and col_s in df.columns else None
