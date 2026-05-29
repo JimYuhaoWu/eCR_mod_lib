@@ -88,6 +88,184 @@ papers:
       Skip mmc3 (p53 variants overlap Compendium). Skip mmc6-10 (raw/simulation).
       Files saved as: Staller_2022_mmc2.csv, Staller_2022_mmc4.csv, Staller_2022_mmc5.csv
 
+  # ── Auto-rejected 2026-05-30 ─────────────────────────────────────────────────
+
+  - doi: "10.1016/j.cels.2025.101349"
+    title: "Selective association of short tandem repeats with DNA-binding domains and intrinsically disordered regions of transcription factors"
+    year: 2025
+    journal: "Cell Systems"
+    categories: [DBD]
+    status: rejected
+    notes: "Computational/structural study of STR distribution in TFs — no domain sequences or activity scores"
+
+  - doi: "10.1021/acschembio.2c00805"
+    title: "New High-Throughput Screen Discovers Novel Ligands of Full-Length Nuclear Receptor LRH-1"
+    year: 2023
+    journal: "ACS Chemical Biology"
+    categories: [DBD]
+    status: rejected
+    notes: "Small molecule ligand screen for a nuclear receptor DBD — inhibitor study, not domain engineering"
+
+  - doi: "10.1007/s10529-022-03338-8"
+    title: "Development of a synthetic transcription factor-based S-adenosylmethionine biosensor in Saccharomyces cerevisiae"
+    year: 2023
+    journal: "Biotechnology Letters"
+    categories: [DBD]
+    status: rejected
+    notes: "Yeast (S. cerevisiae) study — not human or mouse"
+
+  - doi: "10.1128/jvi.00918-25"
+    title: "Targeting papillomavirus infections: high-throughput screening reveals an effective inhibitor of cutaneous beta-HPV types"
+    year: 2025
+    journal: "Journal of Virology"
+    categories: [DBD]
+    status: rejected
+    notes: "Antiviral inhibitor screen — not domain characterization for synthetic TF engineering"
+
+  - doi: "10.1002/advs.202416963"
+    title: "An Intracellular Peptide Library Screening Platform Identifies Irreversible Covalent Transcription Factor Inhibitors"
+    year: 2025
+    journal: "Advanced Science"
+    categories: [DBD]
+    status: rejected
+    notes: "TF inhibitor discovery — therapeutic application, not domain characterization"
+
+  - doi: "10.1016/j.ab.2024.115752"
+    title: "In silico selection against progesterone receptor DNA-binding domain"
+    year: 2025
+    journal: "Analytical Biochemistry"
+    categories: [DBD]
+    status: rejected
+    notes: "Computational inhibitor design targeting the DBD — not domain characterization"
+
+  - doi: "10.1186/s13059-025-03802-4"
+    title: "GWAS-informed data integration and non-coding CRISPRi screen illuminate genetic etiology of bone mineral density"
+    year: 2025
+    journal: "Genome Biology"
+    categories: [ED]
+    status: rejected
+    notes: "GWAS disease study using CRISPRi as a tool — no effector domain characterization"
+
+  - doi: "10.1038/s41598-022-19703-6"
+    title: "Peptidomimetics designed to bind to RAS effector domain are promising cancer therapeutic compounds"
+    year: 2022
+    journal: "Scientific Reports"
+    categories: [ED]
+    status: rejected
+    notes: "RAS signaling effector domain (not transcriptional) — cancer drug discovery, wrong type of effector"
+
+  - doi: "10.1038/s41467-022-29120-y"
+    title: "Precise tumor immune rewiring via synthetic CRISPRa circuits gated by concurrent gain/loss of transcription factors"
+    year: 2022
+    journal: "Nature Communications"
+    categories: [ED]
+    status: rejected
+    notes: "CRISPRa as a tool for cancer immunotherapy — no new effector domain characterization"
+
+  - doi: "10.1016/j.ajhg.2021.06.013"
+    title: "High-throughput splicing assays identify missense and silent splice-disruptive POU1F1 variants underlying pituitary hormone deficiency"
+    year: 2021
+    journal: "American Journal of Human Genetics"
+    categories: [ED]
+    status: rejected
+    notes: "Splice variant disease study — no effector domain sequences or activity scores"
+
+  - doi: "10.1007/978-1-0716-4051-7_4"
+    title: "Using High-Throughput Measurements to Identify Principles of Transcriptional and Epigenetic Regulators"
+    year: 2024
+    journal: "Methods in Molecular Biology"
+    categories: [ED]
+    status: rejected
+    notes: "Methods book chapter / review — no new primary data"
+
+  - doi: "10.1111/cas.70337"
+    title: "KRAB Zinc-Finger Protein ZNF205 Promotes Hepatocellular Carcinoma via p53 Pathway Repression"
+    year: 2026
+    journal: "Cancer Science"
+    categories: [ED]
+    status: rejected
+    notes: "Cancer biology study of a single KRAB-ZNF — no domain screen or activity scores"
+
+  - doi: "10.3390/biom13060984"
+    title: "Dysregulation of SWI/SNF Chromatin Remodelers in NSCLC: Its Influence on Cancer Therapies including Immunotherapy"
+    year: 2023
+    journal: "Biomolecules"
+    categories: [CR]
+    status: rejected
+    notes: "Review of SWI/SNF in lung cancer — no domain sequences or engineering data"
+
+  - doi: "10.1016/j.compbiolchem.2018.10.016"
+    title: "Pharmacophore-based virtual screening for identification of potential selective inhibitors of human histone deacetylase 6"
+    year: 2018
+    journal: "Computational Biology and Chemistry"
+    categories: [CR]
+    status: rejected
+    notes: "HDAC6 inhibitor virtual screen — drug discovery, not CR domain characterization"
+
+  - doi: "10.1002/cbic.202400293"
+    title: "High Content Screening Assay of Inhibitors of the Legionella Pneumophila Histone Methyltransferase RomA in Infected Cells"
+    year: 2024
+    journal: "ChemBioChem"
+    categories: [CR]
+    status: rejected
+    notes: "Bacterial HMT (Legionella) inhibitor screen — bacterial organism, inhibitor study"
+
+  - doi: "10.3390/ijms22063022"
+    title: "High-Throughput Screening for CEBPD-Modulating Compounds in THP-1-Derived Reporter Macrophages Identifies Anti-Inflammatory HDAC and BET Inhibitors"
+    year: 2021
+    journal: "International Journal of Molecular Sciences"
+    categories: [CR]
+    status: rejected
+    notes: "HDAC/BET inhibitor screen in macrophages — drug discovery, not domain characterization"
+
+  - doi: "10.1021/acs.jmedchem.8b01087"
+    title: "Characterization of Histone Deacetylase 8 (HDAC8) Selective Inhibition Reveals Specific Active Site Structural and Functional Determinants"
+    year: 2018
+    journal: "Journal of Medicinal Chemistry"
+    categories: [CR]
+    status: rejected
+    notes: "HDAC8 inhibitor medicinal chemistry — drug discovery, not CR engineering"
+
+  - doi: "10.1038/s41375-020-0908-8"
+    title: "CARM1 inhibition reduces histone acetyltransferase activity causing synthetic lethality in CREBBP/EP300-mutated lymphomas"
+    year: 2020
+    journal: "Leukemia"
+    categories: [CR]
+    status: rejected
+    notes: "Synthetic lethality + inhibitor study in lymphoma — drug discovery, not domain characterization"
+
+  - doi: "10.18632/aging.204449"
+    title: "Histone methyltransferase Smyd2 drives vascular aging by its enhancer-dependent activity"
+    year: 2022
+    journal: "Aging"
+    categories: [CR]
+    status: rejected
+    notes: "Disease/aging biology of Smyd2 — no domain sequences or activity scores for engineering"
+
+  - doi: "10.1091/mbc.e21-10-0528"
+    title: "An epigenetic small molecule screen to target abnormal nuclear morphology in human cells"
+    year: 2022
+    journal: "Molecular Biology of the Cell"
+    categories: [CR]
+    status: rejected
+    notes: "Epigenetic small molecule screen for nuclear morphology defects — drug screen, not domain engineering"
+
+  - doi: "10.1016/j.jmb.2024.168766"
+    title: "The Enigma of Transcriptional Activation Domains"
+    year: 2024
+    journal: "Journal of Molecular Biology"
+    categories: [ED]
+    status: rejected
+    notes: "Review article — no primary domain sequences or activity data"
+
+  - doi: "10.1021/acssynbio.5c00076"
+    title: "CRISPR-Based Regulation for High-Throughput Screening"
+    year: 2025
+    journal: "ACS Synthetic Biology"
+    categories: [ED]
+    status: rejected
+    notes: "Uses CRISPR regulation as a tool for screening — application paper, not new effector domain characterization"
+
   - doi: "10.1590/1414-431x2023e12854"
     title: "Evidence of a synthetic lethality interaction between SETDB1 histone methyltransferase and CHD4 chromatin remodeling protein in a triple negative breast cancer cell line"
     year: 2023

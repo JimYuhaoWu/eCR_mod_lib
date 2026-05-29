@@ -226,26 +226,33 @@ SCREEN_FILES = {
         ),
     },
     # Staller 2022 — directed mutational scan + novel predicted ADs tested in human cells.
+    # mmc5 (activities) is merged on-the-fly with mmc4 (UniProt IDs) inside process_screen_data.
     "Staller_2022_predictions": {
-        "path": MANUAL_DIR / "Staller_2022_predictions.csv",
+        "path": MANUAL_DIR / "Staller_2022_mmc5.csv",
         "doi": "10.1016/j.cels.2022.01.002",
         "sheet": None,
         "col_name": None,
         "col_gene": "GeneName",
-        "col_fragment": None,           # built from Start+End below
-        "col_fragment_start": "Start_x",  # suffixed after merge with mmc4
-        "col_fragment_end": "End_x",
-        "col_uniprot": "uniprot_id",    # read UniProt from column
+        "col_fragment_start": "Start",
+        "col_fragment_end": "End",
         "col_sequence": "ProteinRegionSeq",
         "col_score": "Activity_Zscore_mean",
         "min_score_threshold": 0.5,
+        "row_prefilter": {"col": "RegionType", "value": "Prediction"},
         "col_hit": None,
         "hit_value": None,
         "subtype_override": "activator",
         "validation_level_override": "screen-validated",
+        # Merge mmc4 to add UniProt IDs; joined on ProteinRegionSeq
+        "merge_file": MANUAL_DIR / "Staller_2022_mmc4.csv",
+        "merge_on": "ProteinRegionSeq",
+        "merge_extract": {
+            "col_uniprot": "uniprotID",
+            "col_gene_symbol": ("GeneName", r"\|([^|]+)_HUMAN"),
+        },
         "notes": (
-            "Run scripts/prepare_staller2022.py first to generate this file. "
-            "Source: mmc4.csv + mmc5.csv from https://doi.org/10.1016/j.cels.2022.01.002"
+            "Save mmc5.csv and mmc4.csv from https://doi.org/10.1016/j.cels.2022.01.002 "
+            "as data/manual/Staller_2022_mmc5.csv and Staller_2022_mmc4.csv"
         ),
     },
     "Staller_2022_wt_domains": {
@@ -378,6 +385,29 @@ def process_screen_data(log) -> list[dict]:
             log.error(f"[{screen_name}] parse error: {e}")
             continue
 
+        # Optional merge with a second file (e.g. to add UniProt IDs)
+        merge_file = info.get("merge_file")
+        if merge_file and Path(merge_file).exists():
+            try:
+                mdf = pd.read_csv(merge_file) if str(merge_file).endswith(".csv") else pd.read_excel(merge_file)
+                merge_on = info["merge_on"]
+                extract = info.get("merge_extract", {})
+                # Extract/rename columns from the merge file before joining
+                for target_key, src in extract.items():
+                    if isinstance(src, tuple):
+                        col, pattern = src
+                        mdf[target_key] = mdf[col].str.extract(pattern)
+                    else:
+                        mdf = mdf.rename(columns={src: target_key})
+                keep = [merge_on] + list(extract.keys())
+                mdf = mdf[[c for c in keep if c in mdf.columns]].drop_duplicates(merge_on)
+                df = df.merge(mdf, on=merge_on, how="left")
+                # Update col_uniprot to the merged column name
+                if "col_uniprot" in extract:
+                    info = {**info, "col_uniprot": "col_uniprot"}
+            except Exception as e:
+                log.warning(f"[{screen_name}] merge failed: {e}")
+
         # Apply row pre-filter (e.g. restrict to a specific domain type)
         pf = info.get("row_prefilter")
         if pf and pf["col"] in df.columns:
@@ -408,7 +438,9 @@ def process_screen_data(log) -> list[dict]:
         col_frag = info.get("col_fragment")
         col_frag_start = info.get("col_fragment_start")
         col_frag_end = info.get("col_fragment_end")
-        col_uniprot_col = info.get("col_uniprot")
+        # col_uniprot: direct column name, or from merge_extract
+        merge_extract = info.get("merge_extract", {})
+        col_uniprot_col = "col_uniprot" if "col_uniprot" in merge_extract else info.get("col_uniprot")
 
         for _, row in df.iterrows():
             # Build name: gene+fragment, gene+start-end, col_name, or just gene
