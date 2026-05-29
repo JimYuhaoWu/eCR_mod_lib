@@ -188,16 +188,40 @@ SCREEN_FILES = {
             "and save as data/manual/Alerasool_2022_SupTable.xlsx"
         ),
     },
-    "DelRosso_2023": {
-        "path": MANUAL_DIR / "DelRosso_2023_SupTable.tsv",
-        "doi": "10.1038/s41586-023-06415-8",
-        "col_name": "domain_name",
-        "col_sequence": "aa_sequence",
-        "col_score": "repression_score",
+    "DelRosso_2023_activators": {
+        "path": MANUAL_DIR / "DelRosso_2023_SupTable.xlsx",
+        "doi": "10.1038/s41586-023-05906-y",
+        "sheet": "Activation Domains",
+        "col_name": None,
+        "col_gene": "HGNC symbol",
+        "col_fragment": "Domain",
+        "col_sequence": "Sequence",
+        "col_score": "Max avg act",
+        "col_hit": None,
+        "hit_value": None,
+        "subtype_override": "activator",
         "notes": (
-            "Download Supplementary Table 2 from "
-            "https://doi.org/10.1038/s41586-023-06415-8 "
-            "and save as data/manual/DelRosso_2023_SupTable.tsv"
+            "Download Supplementary Table 6 from "
+            "https://doi.org/10.1038/s41586-023-05906-y "
+            "and save as data/manual/DelRosso_2023_SupTable.xlsx"
+        ),
+    },
+    "DelRosso_2023_repressors": {
+        "path": MANUAL_DIR / "DelRosso_2023_SupTable.xlsx",
+        "doi": "10.1038/s41586-023-05906-y",
+        "sheet": "Repression Domains",
+        "col_name": None,
+        "col_gene": "HGNC symbol",
+        "col_fragment": "Domain",
+        "col_sequence": "Sequence",
+        "col_score": "Max avg pEF",
+        "col_hit": None,
+        "hit_value": None,
+        "subtype_override": "repressor",
+        "notes": (
+            "Download Supplementary Table 6 from "
+            "https://doi.org/10.1038/s41586-023-05906-y "
+            "and save as data/manual/DelRosso_2023_SupTable.xlsx"
         ),
     },
 }
@@ -261,9 +285,11 @@ def process_screen_data(log) -> list[dict]:
                 except (ValueError, TypeError):
                     pass
 
-            # Infer subtype from screen
-            is_repressor = "repression" in screen_name.lower() or "repression" in (col_q or "")
-            subtype = "repressor" if is_repressor else "activator"
+            if info.get("subtype_override"):
+                subtype = info["subtype_override"]
+            else:
+                is_repressor = "repression" in screen_name.lower() or "repression" in (col_q or "")
+                subtype = "repressor" if is_repressor else "activator"
 
             module_id = f"ED_{screen_name.upper()}_{name.upper().replace(' ','_')[:40]}"
             record = {
@@ -332,7 +358,7 @@ def main():
         sources_used=[
             {"name": "ed_curated.yaml", "version": "manual_v1"},
             {"name": "Alerasool_2022", "doi": SCREEN_FILES["Alerasool_2022"]["doi"]},
-            {"name": "DelRosso_2023",  "doi": SCREEN_FILES["DelRosso_2023"]["doi"]},
+            {"name": "DelRosso_2023",  "doi": SCREEN_FILES["DelRosso_2023_activators"]["doi"]},
         ],
         records_added=len(all_records),
     )
