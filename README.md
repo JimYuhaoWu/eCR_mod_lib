@@ -116,7 +116,7 @@ python scripts/04_build_library.py --rebuild
 | ED (screen) | [Alerasool et al. 2022](https://doi.org/10.1016/j.molcel.2021.12.005) — tAD-seq sheet | — | 10.1016/j.molcel.2021.12.005 |
 | ED (screen) | [DelRosso et al. 2023](https://doi.org/10.1038/s41586-023-05906-y) — Activation + Repression Domains sheets | — | 10.1038/s41586-023-05906-y |
 | ED (ChIP-validated) | [Compendium of human TF effector domains, 2021](https://doi.org/10.1016/j.molcel.2021.11.007) — Table S2, Activity H+M only | — | 10.1016/j.molcel.2021.11.007 |
-| ED (screen) | High-throughput effector screen (mmc4) — NucAct_data + NucRepr_data sheets | — | TODO — confirm DOI |
+| ED (screen) | [Tycko et al. 2020](https://doi.org/10.1016/j.cell.2020.11.024) — NucAct_data + NucRepr_data sheets | — | 10.1016/j.cell.2020.11.024 |
 | CR (curated) | `data/manual/cr_curated.yaml` | manual_v1 | — |
 | CR (EpiFactors) | [EpiFactors](https://epifactors.autosome.org) — EpiGenes_main.csv | 2.0 | 10.1093/nar/gkab1193 |
 

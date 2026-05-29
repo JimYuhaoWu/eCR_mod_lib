@@ -273,7 +273,7 @@ SCREEN_FILES = {
     # DOI: TODO — confirm from paper. Validation: screen-validated.
     "HiTEff_activators": {
         "path": MANUAL_DIR / "HiTEff_SupTable.xlsx",
-        "doi": "TODO",
+        "doi": "10.1016/j.cell.2020.11.024",
         "sheet": "NucAct_data",
         "col_name": None,
         "col_gene": "Gene entry name",
@@ -290,7 +290,7 @@ SCREEN_FILES = {
     },
     "HiTEff_repressors": {
         "path": MANUAL_DIR / "HiTEff_SupTable.xlsx",
-        "doi": "TODO",
+        "doi": "10.1016/j.cell.2020.11.024",
         "sheet": "NucRepr_data",
         "col_name": None,
         "col_gene": "Gene entry name",
