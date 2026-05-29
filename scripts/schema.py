@@ -18,11 +18,11 @@ Usage
         df = lib.to_dataframe()
 """
 
+from __future__ import annotations
+
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
-from __future__ import annotations
-
 from typing import Iterator
 
 import pandas as pd

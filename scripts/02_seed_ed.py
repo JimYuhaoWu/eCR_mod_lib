@@ -24,9 +24,9 @@ Run
   python scripts/02_seed_ed.py [--config config/sources.yaml] [--dry-run]
 """
 
-import argparse
 from __future__ import annotations
 
+import argparse
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
