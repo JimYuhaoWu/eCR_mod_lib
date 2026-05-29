@@ -29,6 +29,7 @@ jaspar:
 
 epifactors:
   version: "2.0"
-  doi: "10.1093/nar/gkab869"
-  url: "https://epifactors.autosome.org/downloads/epifactors.tsv"
-  local_fallback: "data/manual/epifactors.tsv"
+  doi: "10.1093/nar/gkab1193"
+  url: "https://epifactors.autosome.org/public_data/v2.0.zip"
+  zip_entry: "v2.0/EpiGenes_main.csv"
+  local_fallback: "data/manual/EpiGenes_main.csv"

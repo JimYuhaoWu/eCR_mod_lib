@@ -284,8 +284,8 @@ SCREEN_FILES = {
         "col_hit_values": [True],
         "subtype_override": "activator",
         "notes": (
-            "Save mmc4.xlsx from the high-throughput effector screen paper "
-            "as data/manual/HiTEff_SupTable.xlsx"
+            "Download mmc4.xlsx from https://doi.org/10.1016/j.cell.2020.11.024 "
+            "and save as data/manual/HiTEff_SupTable.xlsx"
         ),
     },
     "HiTEff_repressors": {
@@ -301,8 +301,8 @@ SCREEN_FILES = {
         "col_hit_values": [True],
         "subtype_override": "repressor",
         "notes": (
-            "Save mmc4.xlsx from the high-throughput effector screen paper "
-            "as data/manual/HiTEff_SupTable.xlsx"
+            "Download mmc4.xlsx from https://doi.org/10.1016/j.cell.2020.11.024 "
+            "and save as data/manual/HiTEff_SupTable.xlsx"
         ),
     },
 }
