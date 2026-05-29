@@ -1,0 +1,7 @@
+module_id	check	detail
+DBD_MU_GM14391	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
+DBD_MU_ZFP981	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
+DBD_MU_GM5141	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
+DBD_MU_RHOX3H	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
+DBD_MU_ZFP619	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
+DBD_MU_GM17067	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id

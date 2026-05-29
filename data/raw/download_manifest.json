@@ -1,0 +1,18 @@
+{
+  "animaltfdb_Homo_sapiens": {
+    "url": "https://guolab.wchscu.cn/static/AnimalTFDB4/download/Homo_sapiens_TF.txt",
+    "version": "4.0",
+    "description": "AnimalTFDB v4.0 Homo_sapiens (manual)",
+    "sha256": "3e7eef2d615e0b95c98e3ed817caeb9e341e369b1b1356ce7b947d7e2c53ff4d",
+    "downloaded_at": "2026-05-29T08:38:44.859692+00:00",
+    "local_path": "D:\\module_library\\data\\raw\\animaltfdb\\Homo_sapiens_TF.txt"
+  },
+  "animaltfdb_Mus_musculus": {
+    "url": "https://guolab.wchscu.cn/static/AnimalTFDB4/download/Mus_musculus_TF.txt",
+    "version": "4.0",
+    "description": "AnimalTFDB v4.0 Mus_musculus (manual)",
+    "sha256": "8cff2067775f04c9c2a1147ff33f2e3ace23fb13c968dd99723671b8660c2e74",
+    "downloaded_at": "2026-05-29T08:38:44.859692+00:00",
+    "local_path": "D:\\module_library\\data\\raw\\animaltfdb\\Mus_musculus_TF.txt"
+  }
+}

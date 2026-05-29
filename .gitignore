@@ -1,0 +1,11 @@
+data/raw/**/*.fasta
+data/raw/*.fasta
+data/raw/**/*.json
+!data/raw/download_manifest.json
+data/processed/
+library/module_library.db
+logs/
+__pycache__/
+*.pyc
+.env
+.claude/

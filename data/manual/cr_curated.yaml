@@ -1,0 +1,144 @@
+# data/manual/cr_curated.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+# Curated chromatin remodeler (CR) entries for the module library.
+# Sequences fetched from UniProt using uniprot_id + domain_residues.
+#
+# Fields follow the same schema as ed_curated.yaml.
+# chromatin_state_effect: effect on local chromatin when the domain is recruited
+# target_modification: the histone mark written/erased
+# complex_membership: the complex the full-length protein belongs to
+# ─────────────────────────────────────────────────────────────────────────────
+
+remodelers:
+
+  - name: BRG1-ATPase
+    subtype: ATP-dependent remodeler
+    source_protein: "Transcription activator BRG1 (SMARCA4)"
+    organism: Homo sapiens
+    uniprot_id: P51532
+    domain_residues: "748-1232"
+    complex_membership: "esBAF (SWI/SNF)"
+    mechanism: >
+      ATPase/helicase domain of SMARCA4; slides and evicts nucleosomes
+      in an ATP-dependent manner. Recruited by OCT4, SOX2, and MYC-TAD
+      to pluripotency enhancers. Core of esBAF; essential for iPSC chromatin
+      opening at pluripotency loci.
+    chromatin_state_effect: "open / nucleosome eviction at target loci"
+    target_modification: "nucleosome displacement; secondary H3K4me3 increase"
+    validation_level: screen-validated
+    known_interactors: "SMARCC1 (BAF155), SMARCC2 (BAF170), ARID1A, POU5F1, SOX2"
+    linker_notes: >
+      Large domain (485 aa); use flexible (GS)8 or (EAAAK)3 linker.
+      Place C-terminal to ED in activator eTFs.
+    engineering_compatibility: >
+      Singhal et al. 2010 Cell: BRG1 + BAF155 overexpression enhances MEF
+      reprogramming. ATPase domain alone retains remodeling activity.
+      Preferred CR for activator eTFs targeting iPSC loci.
+    doi: "10.1016/j.cell.2010.04.027"
+    notes: "Positive control for iPSC-activation eTF designs."
+
+  - name: p300-HAT
+    subtype: histone acetyltransferase
+    source_protein: "Histone acetyltransferase p300 (EP300)"
+    organism: Homo sapiens
+    uniprot_id: Q09472
+    domain_residues: "1287-1666"
+    complex_membership: "p300/CBP family"
+    mechanism: >
+      Catalytic HAT core domain of p300; deposits H3K27ac at target
+      enhancers, converting poised H3K4me1 to active H3K27ac state.
+      Used in dCas9-p300 to activate endogenous enhancers with high specificity.
+    chromatin_state_effect: "open / H3K27ac at target enhancer"
+    target_modification: "H3K27ac (also H3K18ac, H3K9ac)"
+    validation_level: screen-validated
+    known_interactors: "MED12, PCAF, RELA, CREBBP"
+    linker_notes: "GS8 flexible linker; domain is 380 aa — tolerate C-terminal placement"
+    engineering_compatibility: >
+      Hilton et al. 2015 Nat Biotechnol: dCas9-p300 core activates
+      enhancers far more effectively than dCas9-VP64 alone.
+      Ideal CR for activator eTFs targeting iPSC-specific enhancers
+      in a closed-chromatin MEF context.
+    doi: "10.1038/nbt.3199"
+    notes: >
+      Hilton et al. 2015 Nat Biotechnol. The HAT core (residues 1287-1666)
+      is the minimal functional domain. Use for enhancer activation, not
+      promoter-proximal targets.
+
+  - name: LSD1-AOD
+    subtype: histone demethylase
+    source_protein: "Lysine-specific histone demethylase 1A (KDM1A / LSD1)"
+    organism: Homo sapiens
+    uniprot_id: O60341
+    domain_residues: "270-852"
+    complex_membership: "CoREST / NuRD"
+    mechanism: >
+      Amine oxidase domain of LSD1; demethylates H3K4me1/me2,
+      converting active enhancers to a poised or inactive state.
+      Used for locus-specific enhancer silencing (e.g. MEF-specific
+      AP-1 enhancers). Recruited by RCOR1 (CoREST) complex.
+    chromatin_state_effect: "close / enhancer decommissioning via H3K4me1 removal"
+    target_modification: "H3K4me1→H3K4me0 (demethylation)"
+    validation_level: screen-validated
+    known_interactors: "RCOR1 (CoREST), HDAC1, HDAC2, ZNF516"
+    linker_notes: "GS6 C-terminal to repressor DBD; large domain (583 aa)"
+    engineering_compatibility: >
+      Kearns et al. 2015 Nat Methods: dCas9-LSD1 silences enhancers
+      without affecting promoters — appropriate for MEF-specific
+      enhancer repression in the MEF-to-iPSC dual-arm strategy.
+    doi: "10.1038/nmeth.3209"
+    notes: >
+      Kearns et al. 2015 Nat Methods. Preferred CR for repressor eTFs
+      targeting MEF-specific enhancers; complements KRAB (which adds
+      H3K9me3 rather than demethylating H3K4me1).
+
+  - name: EZH2-SET
+    subtype: histone methyltransferase
+    source_protein: "Histone-lysine N-methyltransferase EZH2"
+    organism: Homo sapiens
+    uniprot_id: Q15910
+    domain_residues: "603-746"
+    complex_membership: "PRC2 (Polycomb Repressive Complex 2)"
+    mechanism: >
+      Catalytic SET domain of EZH2; trimethylates H3K27 (H3K27me3),
+      the canonical Polycomb silencing mark. Compacts chromatin and
+      prevents enhancer activation. Most active in the context of the
+      full PRC2 complex (with EED and SUZ12).
+    chromatin_state_effect: "close / H3K27me3 Polycomb silencing"
+    target_modification: "H3K27me3"
+    validation_level: ChIP-validated
+    known_interactors: "EED, SUZ12, JARID2"
+    linker_notes: "GS6–8; note: requires EED for full catalytic activity in isolation"
+    engineering_compatibility: >
+      SET domain alone has low activity without EED; consider fusing
+      an EED-interaction peptide or using a co-expressed EED construct.
+      Use only for loci requiring strong, durable Polycomb silencing.
+      Lower priority than KRAB or LSD1 for initial eTF screen.
+    doi: "10.1016/j.molcel.2004.01.004"
+    notes: >
+      Czermin et al. 2002, Müller et al. 2002. Activity of isolated SET
+      domain requires validation; prefer EZH2 in PRC2 complex context.
+
+  - name: DNMT3A-CD
+    subtype: DNA methyltransferase
+    source_protein: "DNA (cytosine-5)-methyltransferase 3A (DNMT3A)"
+    organism: Homo sapiens
+    uniprot_id: Q9Y6K1
+    domain_residues: "627-912"
+    complex_membership: "de novo methyltransferase complex"
+    mechanism: >
+      Catalytic domain of DNMT3A; deposits CpG methylation de novo.
+      When fused with DNMT3L (which lacks catalytic activity but
+      stimulates DNMT3A), produces heritable silencing. Used in
+      CRISPRoff alongside KRAB for durable, mitotically stable repression.
+    chromatin_state_effect: "close / CpG methylation; heritable silencing"
+    target_modification: "5-methylcytosine (5mC) at CpG sites"
+    validation_level: screen-validated
+    known_interactors: "DNMT3L, DNMT1, UHRF1, H3K36me2"
+    linker_notes: "GS8; combine with DNMT3L domain for full activity (CRISPRoff design)"
+    engineering_compatibility: >
+      Nunez et al. 2021 Cell: dCas9-KRAB-DNMT3A-DNMT3L achieves
+      heritable silencing. Use only where long-term, cell-division-stable
+      repression of MEF-specific loci is required. Adds complexity to
+      the eTF construct; not first-line choice.
+    doi: "10.1016/j.cell.2021.01.022"
+    notes: "CRISPRoff; Nunez et al. 2021. Use with DNMT3L for full activity."

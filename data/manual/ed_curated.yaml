@@ -1,0 +1,260 @@
+# data/manual/ed_curated.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+# Canonical effector domain (ED) entries for the module library.
+# Sequences are fetched from UniProt using the uniprot_id + domain_residues,
+# or stored directly as sequence_manual for synthetic/composite constructs.
+#
+# Fields
+# ──────
+# name               : canonical name used in the library
+# subtype            : activator | repressor | dual
+# source_protein     : full protein the domain comes from
+# organism           : Homo sapiens | Mus musculus | viral | synthetic
+# uniprot_id         : UniProt accession (for sequence fetch)
+# domain_residues    : "start-end" positions in the full protein (1-indexed)
+# sequence_manual    : full AA sequence if synthetic or pre-defined
+# mechanism          : known molecular mechanism
+# activity_score     : numerical score from a published screen (if available)
+# activity_metric    : what the score measures
+# activity_source    : paper / DOI for the score
+# validation_level   : predicted | motif-only | ChIP-validated | screen-validated
+# engineering_compatibility : free-text note on fusion use cases
+# known_interactors  : comma-separated interactors
+# linker_notes       : recommended linker context
+# doi                : primary reference DOI
+# notes              : anything else worth recording
+# ─────────────────────────────────────────────────────────────────────────────
+
+activators:
+
+  - name: VP16-TAD
+    subtype: activator
+    source_protein: "Herpes simplex virus 1 protein VP16 (ICP25/UL48)"
+    organism: viral
+    uniprot_id: P06492
+    domain_residues: "411-490"
+    mechanism: >
+      Recruits Mediator subunit MED25 and TFIID; enhances preinitiation
+      complex assembly via direct contact with TBP and TAF proteins.
+    activity_score: null
+    activity_metric: null
+    activity_source: null
+    validation_level: screen-validated
+    engineering_compatibility: >
+      Widely used as single TAD in ZF-VP16, TALE-VP16, dCas9-VP16 fusions;
+      weaker than VP64 due to single copy.
+    known_interactors: "MED25, TBP, TAF4, TAF9"
+    linker_notes: "GS4 C-terminal linker; tolerate N-terminal fusion"
+    doi: "10.1126/science.236.4806.1237"
+    notes: "Prototypical acidic activation domain"
+
+  - name: VP64
+    subtype: activator
+    source_protein: "Synthetic 4x tandem repeat of VP16 minimal activation domain"
+    organism: synthetic
+    uniprot_id: null
+    domain_residues: null
+    # Four copies of DALDDFDLDML linked by GGGS spacers
+    sequence_manual: "DALDDFDLDMLGGSGGGSDALDDFDLDMLGGSGGGSDALDDFDLDMLGGSGGGSDALDDFDLDML"
+    mechanism: >
+      Tetrameric enhancement of Mediator recruitment; additive effect of
+      four VP16 minimal ADs. Commonly paired with dCas9 for CRISPRa.
+    activity_score: null
+    activity_metric: null
+    activity_source: null
+    validation_level: screen-validated
+    engineering_compatibility: >
+      Standard CRISPRa activator (dCas9-VP64); base of VPR construct;
+      should be fused at C-terminus of DBD with GS linker.
+    known_interactors: "MED25, TBP, TAF4"
+    linker_notes: "GS5 C-terminal; order VP64 last in tandem activator builds"
+    doi: "10.1093/nar/gkq248"
+    notes: "Chavez et al. 2015 Nat Methods established VPR with VP64 as base"
+
+  - name: p65-TAD
+    subtype: activator
+    source_protein: "Transcription factor p65 (RELA)"
+    organism: Homo sapiens
+    uniprot_id: Q04206
+    domain_residues: "428-551"
+    mechanism: >
+      Recruits CBP/p300 (via RELA transactivation domain) and Mediator;
+      also contacts TFIIH and TFIID. Particularly potent in combination
+      with VP64 (as in VPR).
+    activity_score: null
+    activity_metric: null
+    activity_source: null
+    validation_level: screen-validated
+    engineering_compatibility: >
+      Middle component of VPR (VP64-p65-Rta). Can be used alone
+      as a strong activator when fused C-terminally to a DBD.
+    known_interactors: "CBP, EP300, MED17, TFIIH"
+    linker_notes: "GS4 flanking; part of VPR use GSGSG spacers between components"
+    doi: "10.1038/nmeth.3312"
+    notes: "Rela activation domain; component of Chavez et al. 2015 VPR"
+
+  - name: Rta-TAD
+    subtype: activator
+    source_protein: "Epstein-Barr virus transcription factor BRLF1 (Rta)"
+    organism: viral
+    uniprot_id: P03212
+    domain_residues: "1-425"
+    mechanism: >
+      Recruits p300/CBP and SWI/SNF complex; activates transcription
+      synergistically with VP64+p65 in VPR construct.
+    activity_score: null
+    activity_metric: null
+    activity_source: null
+    validation_level: screen-validated
+    engineering_compatibility: >
+      C-terminal component of VPR (VP64-p65-Rta); functional as standalone
+      activator but most potent in the VPR combination.
+    known_interactors: "EP300, CREBBP, SMARCA4"
+    linker_notes: "GS4 between p65-TAD and Rta-TAD"
+    doi: "10.1038/nmeth.3312"
+    notes: "Rta from EBV; Chavez et al. 2015 Nat Methods"
+
+  - name: VPR
+    subtype: activator
+    source_protein: "Synthetic tripartite VP64-p65-Rta fusion"
+    organism: synthetic
+    uniprot_id: null
+    domain_residues: null
+    sequence_manual: null   # full sequence: concatenation of VP64 + GS linker + p65-TAD + GS linker + Rta-TAD
+    mechanism: >
+      Synergistic activation: VP64 provides Mediator recruitment,
+      p65-TAD adds CBP/p300, Rta-TAD adds SWI/SNF. Together produce
+      ~200-fold induction compared to VP64 alone.
+    activity_score: null
+    activity_metric: null
+    activity_source: null
+    validation_level: screen-validated
+    engineering_compatibility: >
+      C-terminal fusion to any DBD; the current standard for strong
+      gene activation in the CRISPRa/TALE/ZF eTF context.
+    known_interactors: "MED25, EP300, CREBBP, SMARCA4"
+    linker_notes: "GS5 between each component; total 166 aa approximately"
+    doi: "10.1038/nmeth.3312"
+    notes: "Chavez et al. 2015 Nat Methods. Preferred activator for eTF design."
+
+  - name: MyoD-TAD
+    subtype: activator
+    source_protein: "Myogenic differentiation factor 1 (MYOD1)"
+    organism: Homo sapiens
+    uniprot_id: P15172
+    domain_residues: "1-99"
+    mechanism: >
+      N-terminal transcription activation domain of MyoD; recruits
+      SWI/SNF (BRG1) and p300. Particularly effective at pioneer
+      activity on closed chromatin.
+    activity_score: null
+    activity_metric: null
+    activity_source: null
+    validation_level: screen-validated
+    engineering_compatibility: >
+      Fusion with OCT4 (M3O construct) enhanced MEF reprogramming 50-fold;
+      N-terminal fusion is critical (TAD must be N-terminal to DBD).
+    known_interactors: "SMARCA4, EP300, E2F"
+    linker_notes: "GS6 between MyoD-TAD and DBD; N-terminal placement essential"
+    doi: "10.1634/stemcells.2011-0107"
+    notes: >
+      Hirai et al. 2011 Stem Cells Dev. M3O = MyoD(1-99)-OCT4.
+      Key positive control for the MEF-to-iPSC pipeline.
+
+  - name: MYC-TAD
+    subtype: activator
+    source_protein: "Myc proto-oncogene protein (MYC)"
+    organism: Homo sapiens
+    uniprot_id: P01106
+    domain_residues: "1-143"
+    mechanism: >
+      MYC transactivation domain (MBI+MBII boxes); recruits TRRAP,
+      TIP60 and GCN5 histone acetyltransferases. MBII (residues
+      128-143) is essential; linker between MBI and MBII also required.
+    activity_score: null
+    activity_metric: null
+    activity_source: null
+    validation_level: screen-validated
+    engineering_compatibility: >
+      N-terminal fusion with OCT4 dramatically enhances iPSC reprogramming
+      from human fibroblasts. Follow M3O convention: TAD N-terminal, DBD C-terminal.
+    known_interactors: "TRRAP, KAT5, KAT2A, EP300"
+    linker_notes: "GS6 between MYC-TAD and DBD"
+    doi: "10.1016/j.scr.2017.08.006"
+    notes: >
+      Wang et al. 2017 Stem Cell Res. MBI residues 1-43, MBII 63-143;
+      do not use MBI alone — insufficient activation.
+
+repressors:
+
+  - name: KRAB
+    subtype: repressor
+    source_protein: "Zinc finger protein 10 (ZNF10/KOX1)"
+    organism: Homo sapiens
+    uniprot_id: P21506
+    domain_residues: "1-75"
+    mechanism: >
+      Recruits KAP1/TRIM28, which scaffolds NuRD and SETDB1.
+      Leads to H3K9me2/me3 deposition and heterochromatin formation.
+      Silencing can persist after the repressor is removed (epigenetic memory).
+    activity_score: null
+    activity_metric: null
+    activity_source: null
+    validation_level: screen-validated
+    engineering_compatibility: >
+      Standard CRISPRi repressor (dCas9-KRAB); also used in ZF and TALE
+      fusions. C-terminal to DBD. Potent silencer of MEF-specific enhancers.
+    known_interactors: "TRIM28, SETDB1, CHD3, HDAC1"
+    linker_notes: "GS4 C-terminal linker"
+    doi: "10.1016/j.cell.2012.09.005"
+    notes: >
+      Qi et al. 2013 Cell established dCas9-KRAB for CRISPRi.
+      ZFP266 uses a KRAB domain — swapping it for a co-activator
+      domain converted a reprogramming barrier into a facilitator
+      (Bao et al. 2023 Nat Commun). Key positive control.
+
+  - name: KRAB-MeCP2
+    subtype: repressor
+    source_protein: "Synthetic KRAB-MeCP2 fusion"
+    organism: synthetic
+    uniprot_id: null
+    domain_residues: null
+    sequence_manual: null
+    mechanism: >
+      Combines H3K9me3 (KRAB) with DNA methylation readout (MeCP2);
+      recruits HDAC1/2 via MeCP2 interaction with NCoR/SMRT complex.
+      Stronger and more durable silencing than KRAB alone.
+    activity_score: null
+    activity_metric: null
+    activity_source: null
+    validation_level: screen-validated
+    engineering_compatibility: >
+      CRISPRoff uses KRAB-DNMT3A-DNMT3L for heritable silencing;
+      KRAB-MeCP2 is a simpler alternative for durable repression.
+    known_interactors: "TRIM28, HDAC1, HDAC2, NCOR1, NCOR2"
+    linker_notes: "GS6 between KRAB and MeCP2 domains"
+    doi: "10.1126/science.aaz1175"
+    notes: "Yeo et al. 2018 Science; use for MEF-specific loci requiring durable repression"
+
+  - name: SALL1-SDS3
+    subtype: repressor
+    source_protein: "Sal-like protein 1 (SALL1)"
+    organism: Homo sapiens
+    uniprot_id: Q9NSC2
+    domain_residues: "1-12"
+    mechanism: >
+      12-aa SALL1 repression domain recruits NuRD complex via direct
+      interaction with HDAC1/2 and CHD3/CHD4. Compact size makes it
+      suitable for steric-constraint-limited fusion designs.
+    activity_score: null
+    activity_metric: null
+    activity_source: null
+    validation_level: screen-validated
+    engineering_compatibility: >
+      Compact (12 aa) — suitable where linker space is limited;
+      should not be used as sole repressor for robust MEF silencing;
+      combine with KRAB for stronger effect.
+    known_interactors: "HDAC1, HDAC2, CHD3, CHD4, RBBP4"
+    linker_notes: "GS3 minimal linker; very short domain"
+    doi: "10.1038/ng.543"
+    notes: "Lauberth & Bhatt 2010 Nat Genet"

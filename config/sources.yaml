@@ -1,0 +1,34 @@
+# config/sources.yaml
+# All external data sources, versions, and DOIs for the module library pipeline.
+
+animaltfdb:
+  version: "4.0"
+  doi: "10.1093/nar/gkad625"
+  base_url: "https://guolab.wchscu.cn/static/AnimalTFDB4/download"
+  col_map:
+    symbol: "Symbol"
+    family: "Family"
+    uniprot_id: "Uniprot"
+    ensembl_id: "Ensembl"
+  species:
+    Homo_sapiens:
+      taxon_id: 9606
+      filename: "Homo_sapiens_TF.txt"
+    Mus_musculus:
+      taxon_id: 10090
+      filename: "Mus_musculus_TF.txt"
+
+uniprot:
+  version: "2024_02"
+  api_base: "https://rest.uniprot.org/uniprotkb"
+
+jaspar:
+  version: "2024"
+  doi: "10.1093/nar/gkad1059"
+  api_base: "https://jaspar.elixir.no/api/v1"
+
+epifactors:
+  version: "2.0"
+  doi: "10.1093/nar/gkab869"
+  url: "https://epifactors.autosome.org/downloads/epifactors.tsv"
+  local_fallback: "data/manual/epifactors.tsv"

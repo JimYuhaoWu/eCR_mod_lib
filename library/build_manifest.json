@@ -1,0 +1,92 @@
+{
+  "runs": [
+    {
+      "script": "01_fetch_dbd.py",
+      "timestamp": "2026-05-29T08:39:27.514134+00:00",
+      "records_added": 38,
+      "sources": [
+        {
+          "name": "AnimalTFDB",
+          "version": "4.0",
+          "doi": "10.1093/nar/gkad625"
+        },
+        {
+          "name": "UniProt",
+          "version": "2024_02"
+        },
+        {
+          "name": "JASPAR",
+          "version": "2024",
+          "doi": "10.1093/nar/gkad1059"
+        }
+      ],
+      "notes": "dry_run=False  limit=20"
+    },
+    {
+      "script": "02_seed_ed.py",
+      "timestamp": "2026-05-29T08:41:12.920653+00:00",
+      "records_added": 10,
+      "sources": [
+        {
+          "name": "ed_curated.yaml",
+          "version": "manual_v1"
+        },
+        {
+          "name": "Alerasool_2022",
+          "doi": "10.1038/s41588-022-01119-9"
+        },
+        {
+          "name": "DelRosso_2023",
+          "doi": "10.1038/s41586-023-06415-8"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "script": "03_fetch_cr.py",
+      "timestamp": "2026-05-29T08:41:50.634005+00:00",
+      "records_added": 5,
+      "sources": [
+        {
+          "name": "cr_curated.yaml",
+          "version": "manual_v1"
+        },
+        {
+          "name": "EpiFactors",
+          "version": "2.0",
+          "doi": "10.1093/nar/gkab1193"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "script": "04_build_library.py",
+      "timestamp": "2026-05-29T08:41:56.467616+00:00",
+      "records_added": 53,
+      "sources": [
+        {
+          "module_type": "DBD",
+          "source_file": "D:\\module_library\\data\\processed\\dbd_raw.tsv",
+          "records_in_file": 38,
+          "inserted": 38,
+          "updated": 0
+        },
+        {
+          "module_type": "ED",
+          "source_file": "D:\\module_library\\data\\processed\\ed_raw.tsv",
+          "records_in_file": 10,
+          "inserted": 10,
+          "updated": 0
+        },
+        {
+          "module_type": "CR",
+          "source_file": "D:\\module_library\\data\\processed\\cr_raw.tsv",
+          "records_in_file": 5,
+          "inserted": 5,
+          "updated": 0
+        }
+      ],
+      "notes": "updated=0  rebuild=False"
+    }
+  ]
+}
