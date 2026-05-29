@@ -67,6 +67,19 @@ papers:
     status: integrated
     module_source: "EpiGenes_main.csv"
 
+  - doi: "10.1016/j.cels.2022.01.002"
+    title: "Directed mutational scanning reveals a balance between acidic and hydrophobic residues in strong human activation domains"
+    year: 2022
+    journal: "Cell Systems"
+    categories: [ED]
+    status: accepted
+    notes: >
+      Use mmc5.csv (Prediction rows, Z>0.5) for 75 novel screen-validated ADs.
+      Use mmc4.csv to join UniProt IDs onto mmc5 sequences.
+      Use mmc2.csv (WT==True) for 5 classical ADs (CITED2, Hif1a, p65, Stat3, VP16 H1).
+      Skip mmc3 (p53 variants overlap Compendium). Skip mmc6-10 (raw/simulation).
+      Files saved as: Staller_2022_mmc2.csv, Staller_2022_mmc4.csv, Staller_2022_mmc5.csv
+
   - doi: "10.1590/1414-431x2023e12854"
     title: "Evidence of a synthetic lethality interaction between SETDB1 histone methyltransferase and CHD4 chromatin remodeling protein in a triple negative breast cancer cell line"
     year: 2023

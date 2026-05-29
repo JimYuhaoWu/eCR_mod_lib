@@ -225,6 +225,47 @@ SCREEN_FILES = {
             "and save as data/manual/DelRosso_2023_SupTable.xlsx"
         ),
     },
+    # Staller 2022 — directed mutational scan + novel predicted ADs tested in human cells.
+    "Staller_2022_predictions": {
+        "path": MANUAL_DIR / "Staller_2022_predictions.csv",
+        "doi": "10.1016/j.cels.2022.01.002",
+        "sheet": None,
+        "col_name": None,
+        "col_gene": "GeneName",
+        "col_fragment": None,           # built from Start+End below
+        "col_fragment_start": "Start_x",  # suffixed after merge with mmc4
+        "col_fragment_end": "End_x",
+        "col_uniprot": "uniprot_id",    # read UniProt from column
+        "col_sequence": "ProteinRegionSeq",
+        "col_score": "Activity_Zscore_mean",
+        "min_score_threshold": 0.5,
+        "col_hit": None,
+        "hit_value": None,
+        "subtype_override": "activator",
+        "validation_level_override": "screen-validated",
+        "notes": (
+            "Run scripts/prepare_staller2022.py first to generate this file. "
+            "Source: mmc4.csv + mmc5.csv from https://doi.org/10.1016/j.cels.2022.01.002"
+        ),
+    },
+    "Staller_2022_wt_domains": {
+        "path": MANUAL_DIR / "Staller_2022_mmc2.csv",
+        "doi": "10.1016/j.cels.2022.01.002",
+        "sheet": None,
+        "col_name": "Variant_Name",
+        "col_gene": None,
+        "col_fragment": None,
+        "col_sequence": "ADseq",
+        "col_score": "Activity_Mean_MSS18",
+        "col_hit": "WT",
+        "col_hit_values": [True],
+        "subtype_override": "activator",
+        "validation_level_override": "screen-validated",
+        "notes": (
+            "Download mmc2.csv from https://doi.org/10.1016/j.cels.2022.01.002 "
+            "and save as data/manual/Staller_2022_mmc2.csv"
+        ),
+    },
     # Compendium of human TF effector domains — experimentally characterised ADs/RDs.
     # Filter: Activity H or M (drop L, NaN, S). Validation: ChIP-validated.
     "Compendium_2021_activators": {
@@ -329,6 +370,8 @@ def process_screen_data(log) -> list[dict]:
             sheet = info.get("sheet")
             if info["path"].suffix == ".xlsx":
                 df = pd.read_excel(info["path"], sheet_name=sheet)
+            elif info["path"].suffix == ".csv":
+                df = pd.read_csv(info["path"])
             else:
                 df = pd.read_csv(info["path"], sep="\t")
         except Exception as e:
@@ -346,23 +389,43 @@ def process_screen_data(log) -> list[dict]:
         hit_vals = info.get("col_hit_values")
         if col_hit and col_hit in df.columns:
             if hit_vals is not None:
-                df = df[df[col_hit].isin(hit_vals)]
+                # Coerce to str for comparison so bool True matches string "True"
+                str_vals = [str(v) for v in hit_vals]
+                df = df[df[col_hit].astype(str).isin(str_vals)]
             elif hit_val:
                 df = df[df[col_hit].astype(str).str.strip().str.lower() == hit_val.lower()]
 
-        col_n = info["col_name"]
+        # Numeric score threshold filter
+        min_score = info.get("min_score_threshold")
+        col_q_thresh = info.get("col_score")
+        if min_score is not None and col_q_thresh and col_q_thresh in df.columns:
+            df = df[pd.to_numeric(df[col_q_thresh], errors="coerce") >= min_score]
+
+        col_n = info.get("col_name")
         col_s = info.get("col_sequence")
         col_q = info.get("col_score")
         col_gene = info.get("col_gene")
         col_frag = info.get("col_fragment")
+        col_frag_start = info.get("col_fragment_start")
+        col_frag_end = info.get("col_fragment_end")
+        col_uniprot_col = info.get("col_uniprot")
 
         for _, row in df.iterrows():
-            # Build name from gene+fragment if col_name is None
-            if col_n is None and col_gene and col_frag:
-                name = f"{str(row.get(col_gene, '')).strip()}_{str(row.get(col_frag, '')).strip()}"
-            else:
+            # Build name: gene+fragment, gene+start-end, col_name, or just gene
+            if col_n and col_n in df.columns:
                 name = str(row.get(col_n, "")).strip()
-            if not name or name.lower() in ("nan", "_", "nan_nan"):
+            elif col_gene and col_frag and col_frag in df.columns:
+                name = f"{str(row.get(col_gene, '')).strip()}_{str(row.get(col_frag, '')).strip()}"
+            elif col_gene and col_frag_start and col_frag_end:
+                g = str(row.get(col_gene, "")).strip()
+                s = str(row.get(col_frag_start, "")).strip().split(".")[0]
+                e = str(row.get(col_frag_end, "")).strip().split(".")[0]
+                name = f"{g}_{s}-{e}"
+            elif col_gene:
+                name = str(row.get(col_gene, "")).strip()
+            else:
+                name = ""
+            if not name or name.lower() in ("nan", "_", "nan_nan", "nan_nan-nan"):
                 continue
 
             seq = str(row.get(col_s, "")).strip() if col_s and col_s in df.columns else None
@@ -399,6 +462,13 @@ def process_screen_data(log) -> list[dict]:
                 is_repressor = "repression" in screen_name.lower() or "repression" in (col_q or "")
                 subtype = "repressor" if is_repressor else "activator"
 
+            # UniProt from dedicated column if specified
+            uniprot_from_col = None
+            if col_uniprot_col and col_uniprot_col in df.columns:
+                v = str(row.get(col_uniprot_col, "")).strip()
+                if v and v.lower() not in ("nan", ""):
+                    uniprot_from_col = v
+
             module_id = f"ED_{screen_name.upper()}_{name.upper().replace(' ','_')[:40]}"
             record = {
                 "module_id": module_id,
@@ -406,6 +476,7 @@ def process_screen_data(log) -> list[dict]:
                 "subtype": subtype,
                 "name": name,
                 "organism": "Homo sapiens",
+                "uniprot_id": uniprot_from_col,
                 "sequence_aa": seq,
                 "length_aa": len(seq) if seq else None,
                 "quantitative_metric": score,
