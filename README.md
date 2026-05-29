@@ -16,8 +16,7 @@ module_library/
 ├── config/
 │   └── sources.yaml          # all external URLs, versions, DOIs
 ├── scripts/
-│   ├── utils/
-│   │   └── provenance.py     # logging, checksums, manifests
+│   ├── utils.py              # logging, checksums, manifests
 │   ├── schema.py             # SQLite schema + ModuleLibrary class
 │   ├── 01_fetch_dbd.py       # AnimalTFDB + UniProt + JASPAR
 │   ├── 02_seed_ed.py         # canonical EDs + screen data
@@ -29,14 +28,17 @@ module_library/
 │   │   └── download_manifest.json   # checksums + URLs (commit this)
 │   ├── processed/            # intermediate TSVs (git-ignored)
 │   └── manual/
-│       ├── ed_curated.yaml   # canonical EDs (commit this)
-│       ├── cr_curated.yaml   # curated CRs (commit this)
-│       └── README.md         # instructions for manual downloads
+│       ├── ed_curated.yaml              # canonical EDs
+│       ├── cr_curated.yaml              # curated CRs
+│       ├── Alerasool_2022_SupTable.xlsx # screen data (committed)
+│       ├── DelRosso_2023_SupTable.xlsx  # screen data (committed)
+│       └── EpiGenes_main.csv            # EpiFactors v2.0 main table (committed)
 ├── library/
-│   ├── module_library.db     # SQLite (git-ignored if large)
+│   ├── module_library.db     # SQLite (git-ignored)
 │   ├── module_library.tsv    # TSV snapshot (commit this)
 │   └── build_manifest.json   # full build provenance (commit this)
 ├── logs/                     # timestamped run logs (git-ignored)
+├── requirements.txt          # pip dependencies
 ├── env.yml                   # conda environment
 └── README.md
 ```
@@ -46,13 +48,19 @@ module_library/
 ## Setup
 
 ```bash
-# 1. Create and activate conda environment
+# Clone and enter project root
+git clone https://github.com/JimYuhaoWu/eCR_mod_lib.git
+cd eCR_mod_lib
+
+# Install dependencies (pip)
+pip install -r requirements.txt
+
+# Or with conda
 mamba env create -f env.yml
 conda activate module_library
-
-# 2. Clone repo and enter project root
-cd module_library
 ```
+
+Requires Python 3.8+.
 
 ---
 
@@ -61,13 +69,13 @@ cd module_library
 Run scripts in order from the project root:
 
 ```bash
-# Fetch DBDs from AnimalTFDB, UniProt, JASPAR
+# Fetch DBDs from AnimalTFDB (files committed), UniProt sequences, JASPAR motif IDs
 python scripts/01_fetch_dbd.py
 
-# Seed canonical EDs (+ screen data if supplementary tables are present)
+# Seed canonical EDs + screen data (Alerasool 2022, DelRosso 2023)
 python scripts/02_seed_ed.py
 
-# Fetch CRs from EpiFactors + curated YAML
+# Fetch CRs from EpiFactors v2.0 + curated YAML
 python scripts/03_fetch_cr.py
 
 # Assemble into SQLite + export TSV
@@ -77,7 +85,7 @@ python scripts/04_build_library.py
 python scripts/05_validate.py
 ```
 
-For a quick test run without network calls:
+For a quick test run (no network calls, 10 TFs per species):
 
 ```bash
 python scripts/01_fetch_dbd.py --dry-run --limit 10
@@ -87,7 +95,7 @@ python scripts/04_build_library.py
 python scripts/05_validate.py
 ```
 
-To rebuild from scratch (e.g. after schema change):
+To rebuild from scratch (e.g. after a schema change):
 
 ```bash
 python scripts/04_build_library.py --rebuild
@@ -95,19 +103,21 @@ python scripts/04_build_library.py --rebuild
 
 ---
 
-## Manual downloads required
+## Data sources
 
-Some data sources do not permit automated bulk download.
-Place these files in `data/manual/` before running the relevant script.
+| Module type | Source | Version | DOI |
+|---|---|---|---|
+| DBD | [AnimalTFDB](https://guolab.wchscu.cn/AnimalTFDB4/#/Download) | 4.0 | 10.1093/nar/gkad625 |
+| DBD sequences | [UniProt](https://www.uniprot.org) | 2024_02 | — |
+| DBD motifs | [JASPAR](https://jaspar.elixir.no) | 2024 | 10.1093/nar/gkad1059 |
+| ED (curated) | `data/manual/ed_curated.yaml` | manual_v1 | — |
+| ED (screen) | [Alerasool et al. 2022](https://doi.org/10.1016/j.molcel.2021.12.005) — tAD-seq sheet | — | 10.1016/j.molcel.2021.12.005 |
+| ED (screen) | [DelRosso et al. 2023](https://doi.org/10.1038/s41586-023-05906-y) — Activation + Repression Domains sheets | — | 10.1038/s41586-023-05906-y |
+| CR (curated) | `data/manual/cr_curated.yaml` | manual_v1 | — |
+| CR (EpiFactors) | [EpiFactors](https://epifactors.autosome.org) — EpiGenes_main.csv | 2.0 | 10.1093/nar/gkab1193 |
 
-| File | Source | Script that uses it |
-|---|---|---|
-| `Alerasool_2022_SupTable.tsv` | Suppl. Table 2 from https://doi.org/10.1038/s41588-022-01119-9 | 02_seed_ed.py |
-| `DelRosso_2023_SupTable.tsv` | Suppl. Table 2 from https://doi.org/10.1038/s41586-023-06415-8 | 02_seed_ed.py |
-| `epifactors.tsv` | https://epifactors.autosome.org → "Download table" | 03_fetch_cr.py (auto-attempted) |
-
-The scripts print clear instructions if a required file is missing.
-Download dates and file checksums are recorded in `library/build_manifest.json`.
+All supplementary files are committed to `data/manual/` for reproducibility.
+The AnimalTFDB `.txt` files are committed to `data/raw/animaltfdb/`.
 
 ---
 
@@ -116,24 +126,17 @@ Download dates and file checksums are recorded in `library/build_manifest.json`.
 | File / directory | Commit? | Reason |
 |---|---|---|
 | `data/manual/*.yaml` | ✓ yes | human-curated source of truth |
-| `data/manual/*.tsv` | ✓ yes | manually obtained; record for reproducibility |
+| `data/manual/*.xlsx` | ✓ yes | supplementary tables; fixed version |
+| `data/manual/*.csv` | ✓ yes | EpiFactors main table; fixed version |
+| `data/raw/animaltfdb/*.txt` | ✓ yes | AnimalTFDB TF lists; fixed version |
 | `data/raw/download_manifest.json` | ✓ yes | URL + checksum record |
-| `data/raw/*.txt`, `*.fasta`, `*.json` | ✗ no | large, re-downloadable |
+| `data/raw/uniprot/*.fasta` | ✗ no | re-downloadable |
+| `data/raw/jaspar/*.json` | ✗ no | re-downloadable |
 | `data/processed/*.tsv` | ✗ no | regenerated from scripts |
 | `library/module_library.tsv` | ✓ yes | human-readable snapshot; enables git diff |
 | `library/module_library.db` | ✗ no | binary; regenerated from TSV |
 | `library/build_manifest.json` | ✓ yes | full provenance record |
 | `logs/` | ✗ no | per-run logs |
-
-Add to `.gitignore`:
-```
-data/raw/*.txt
-data/raw/*.fasta
-data/raw/**/*.json
-data/processed/
-library/module_library.db
-logs/
-```
 
 ---
 
@@ -166,12 +169,8 @@ with ModuleLibrary("library/module_library.db") as lib:
 | `predicted` | Computational prediction only; no experimental support |
 | `motif-only` | PWM/motif available (e.g. JASPAR); no direct binding evidence |
 | `ChIP-validated` | Genome-wide binding data available (ChIP-seq / CUT&RUN) |
-| `screen-validated` | Functionally tested in a pooled screen (e.g. Alerasool 2022) |
+| `screen-validated` | Functionally tested in a pooled screen (Alerasool 2022, DelRosso 2023) |
 | `structurally-resolved` | Crystal or cryo-EM structure available for the domain |
-
-The scoring pipeline in `05_score_pipeline.py` (Phase 2) multiplies each component's
-contribution by a weight derived from its `validation_level`. Noisy inputs give noisy
-rankings — hence confidence over count.
 
 ---
 
