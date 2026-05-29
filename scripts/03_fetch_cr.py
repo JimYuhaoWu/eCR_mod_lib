@@ -50,22 +50,20 @@ RAW_DIR = ROOT / "data" / "raw"
 PROCESSED_DIR = ROOT / "data" / "processed"
 MANUAL_DIR = ROOT / "data" / "manual"
 
-# EpiFactors activity classes to include as CRs
+# EpiFactors v2.0 Function values to include as CRs
 _EPIFACTORS_INCLUDE = {
-    "HAT", "HDAC", "HMT", "HDM", "DNMTs", "DNA demethylation",
-    "Chromatin remodeling", "ATP-dependent chromatin remodeler",
-    "Reader", "Writer", "Eraser",
+    "Histone modification write",
+    "Histone modification erase",
+    "Chromatin remodeling",
+    "DNA modification",
 }
 
-# Map EpiFactors category → chromatin_state_effect
+# Map EpiFactors Function → chromatin_state_effect (substring match)
 _EFFECT_MAP = {
-    "HAT": "open / H3K27ac or H3K9ac deposition",
-    "HDAC": "close / histone deacetylation",
-    "HMT": "variable / H3K4me3 (active) or H3K27me3 / H3K9me3 (repressive)",
-    "HDM": "variable / H3K4me1 removal (repress) or H3K27me3 removal (activate)",
-    "DNMTs": "close / CpG methylation",
-    "DNA demethylation": "open / CpG demethylation",
+    "Histone modification write": "variable / histone mark deposition (HAT/HMT/ubiquitin ligase)",
+    "Histone modification erase": "variable / histone mark removal (HDAC/HDM/deubiquitinase)",
     "Chromatin remodeling": "open or close / ATP-dependent nucleosome positioning",
+    "DNA modification": "variable / DNA methylation or demethylation",
 }
 
 
@@ -170,41 +168,48 @@ def process_curated_crs(yaml_path: Path, session, log, dry_run: bool) -> list[di
 
 # ── EpiFactors download + parse ───────────────────────────────────────────────
 
-EPIFACTORS_URL = "https://epifactors.autosome.org/table"
-EPIFACTORS_CACHE = RAW_DIR / "epifactors" / "epifactors.tsv"
+EPIFACTORS_URL = "https://epifactors.autosome.org/public_data/v2.0.zip"
+EPIFACTORS_CACHE = RAW_DIR / "epifactors" / "EpiGenes_main.csv"
+EPIFACTORS_MANUAL = ROOT / "data" / "manual" / "EpiGenes_main.csv"
 
 
 def fetch_epifactors(session, log, manifest: dict, dry_run: bool) -> pd.DataFrame | None:
-    """Download EpiFactors TSV or use cached copy."""
-    if EPIFACTORS_CACHE.exists():
-        log.info(f"[EpiFactors] using cached {EPIFACTORS_CACHE}")
-        try:
-            return pd.read_csv(EPIFACTORS_CACHE, sep="\t", dtype=str)
-        except Exception as e:
-            log.warning(f"[EpiFactors] cache parse error: {e}")
+    """Load EpiFactors EpiGenes_main.csv — from manual/, cache, or zip download."""
+    # Prefer manually placed file
+    for src in (EPIFACTORS_MANUAL, EPIFACTORS_CACHE):
+        if src.exists():
+            log.info(f"[EpiFactors] using {src}")
+            try:
+                return pd.read_csv(src, dtype=str)
+            except Exception as e:
+                log.warning(f"[EpiFactors] parse error for {src}: {e}")
 
     if dry_run:
         log.info("[EpiFactors] DRY-RUN: skipping download")
         return None
 
-    log.info(f"[EpiFactors] downloading from {EPIFACTORS_URL}")
+    log.info(f"[EpiFactors] downloading zip from {EPIFACTORS_URL}")
     resp = _get(EPIFACTORS_URL, session, timeout=60)
     if resp is None:
         log.warning(
             "[EpiFactors] automatic download failed. "
-            "Visit https://epifactors.autosome.org and download the full table, "
-            f"then save as {EPIFACTORS_CACHE}"
+            "Download https://epifactors.autosome.org/public_data/v2.0.zip, "
+            "extract EpiGenes_main.csv and place at data/manual/EpiGenes_main.csv"
         )
         return None
 
+    import io, zipfile
     EPIFACTORS_CACHE.parent.mkdir(parents=True, exist_ok=True)
-    EPIFACTORS_CACHE.write_text(resp.text, encoding="utf-8")
+    with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
+        with z.open("v2.0/EpiGenes_main.csv") as f:
+            content = f.read()
+    EPIFACTORS_CACHE.write_bytes(content)
     record_download(manifest, "epifactors", EPIFACTORS_URL, EPIFACTORS_CACHE,
-                    source_version="2.0", notes="EpiFactors 2.0 full table")
+                    source_version="2.0", notes="EpiFactors 2.0 EpiGenes_main.csv")
     save_manifest(manifest, RAW_DIR)
 
     try:
-        return pd.read_csv(EPIFACTORS_CACHE, sep="\t", dtype=str)
+        return pd.read_csv(EPIFACTORS_CACHE, dtype=str)
     except Exception as e:
         log.error(f"[EpiFactors] parse error after download: {e}")
         return None
@@ -219,16 +224,15 @@ def process_epifactors(df: pd.DataFrame, session, log, dry_run: bool,
     now = datetime.now(timezone.utc).isoformat()
     records = []
 
-    # Normalise column names (EpiFactors may use different capitalisation)
     df.columns = [c.strip() for c in df.columns]
 
-    # Expected EpiFactors columns: HGNC_symbol, UniProt_ID, Function, Category, Organism
-    col_gene = next((c for c in df.columns if "symbol" in c.lower() or "gene" in c.lower()), None)
-    col_uniprot = next((c for c in df.columns if "uniprot" in c.lower()), None)
-    col_func = next((c for c in df.columns if "function" in c.lower() or "category" in c.lower()), None)
-    col_org = next((c for c in df.columns if "organism" in c.lower() or "species" in c.lower()), None)
+    # EpiFactors v2.0 column names
+    col_gene    = "HGNC_symbol"
+    col_uniprot = "UniProt_AC"
+    col_func    = "Function"
+    col_mod     = "Modification"
 
-    if not all([col_gene, col_uniprot]):
+    if col_gene not in df.columns or col_uniprot not in df.columns:
         log.warning(f"[EpiFactors] unexpected columns: {list(df.columns)[:10]}. "
                     f"Skipping EpiFactors integration.")
         return []
@@ -238,12 +242,8 @@ def process_epifactors(df: pd.DataFrame, session, log, dry_run: bool,
     for _, row in tqdm(df.iterrows(), total=len(df), desc="EpiFactors", ncols=80):
         gene = str(row.get(col_gene, "")).strip()
         uniprot_id = str(row.get(col_uniprot, "")).strip()
-        function = str(row.get(col_func, "")).strip() if col_func else ""
-        organism = str(row.get(col_org, "")).strip() if col_org else ""
+        function = str(row.get(col_func, "")).strip() if col_func in df.columns else ""
 
-        # Include only human and mouse, enzymatic categories
-        if organism and "Homo sapiens" not in organism and "Mus musculus" not in organism:
-            continue
         if not any(inc.lower() in function.lower() for inc in _EPIFACTORS_INCLUDE):
             continue
         if not gene or gene.lower() == "nan":
@@ -266,8 +266,8 @@ def process_epifactors(df: pd.DataFrame, session, log, dry_run: bool,
             "type": "CR",
             "subtype": function,
             "name": gene,
-            "organism": organism if organism != "nan" else "Homo sapiens",
-            "source_species": organism if organism != "nan" else "",
+            "organism": "Homo sapiens",
+            "source_species": "Homo sapiens",
             "gene_symbol": gene,
             "uniprot_id": uniprot_id if uniprot_id.lower() not in ("nan","") else None,
             "sequence_aa": seq,
