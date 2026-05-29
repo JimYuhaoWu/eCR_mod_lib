@@ -70,6 +70,15 @@ SCORE_WEIGHTS: dict[str, float] = {
     "commentary": -1.5,
     "erratum": -3.0,
     "correction": -3.0,
+    # Loss-of-function / disease / inhibitor studies — not domain characterisation
+    "complex assembly": -2.0,
+    "loss of function": -1.5,
+    "inhibitor": -1.5,
+    "drug": -1.5,
+    "therapeutic": -1.5,
+    "cancer": -1.0,
+    "tumor": -1.0,
+    "oncogene": -1.0,
     # Non-human/mouse organisms
     "arabidopsis": -3.0,
     "yeast": -2.0,

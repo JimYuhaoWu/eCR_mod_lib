@@ -67,6 +67,14 @@ papers:
     status: integrated
     module_source: "EpiGenes_main.csv"
 
+  - doi: "10.1038/s41467-025-60424-x"
+    title: "CRISPR screen decodes SWI/SNF chromatin remodeling complex assembly"
+    year: 2025
+    journal: "Nature Communications"
+    categories: [CR]
+    status: rejected
+    notes: "Loss-of-function assembly screen — identifies required subunits, not extractable remodeler domains with activity scores"
+
   - doi: "10.1016/j.ijbiomac.2026.151659"
     title: "BEL1-like homeodomain transcription factor SAWTOOTH1 (MdSAW1) in Malus domestica enhances the tolerance of transgenic apple and Arabidopsis to zinc excess stress"
     year: 2026
