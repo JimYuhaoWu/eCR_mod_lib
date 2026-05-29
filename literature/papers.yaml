@@ -1,0 +1,68 @@
+# literature/papers.yaml
+# Master record of all papers assessed for the module library.
+# status values:
+#   integrated  – data already in the library pipeline
+#   accepted    – reviewed, data to be integrated (add module_source when done)
+#   rejected    – reviewed, not relevant or data not extractable
+#   pending     – flagged by search, awaiting human review
+#
+# Do not edit entries with status: integrated manually.
+# Use 03_record.py to record review decisions for pending entries.
+
+papers:
+
+  - doi: "10.1093/nar/gkad625"
+    title: "AnimalTFDB v4.0: a comprehensive animal transcription factor database updated with variation and expression annotations"
+    year: 2023
+    journal: "Nucleic Acids Research"
+    categories: [DBD]
+    status: integrated
+    module_source: "01_fetch_dbd.py / AnimalTFDB"
+
+  - doi: "10.1093/nar/gkad1059"
+    title: "JASPAR 2024: 20th anniversary of the open-access database of transcription factor binding profiles"
+    year: 2024
+    journal: "Nucleic Acids Research"
+    categories: [DBD]
+    status: integrated
+    module_source: "01_fetch_dbd.py / JASPAR"
+
+  - doi: "10.1016/j.molcel.2021.12.005"
+    title: "An unbiased screen for human transcriptional activators identifies a subset that act via the tAD-pathway"
+    year: 2022
+    journal: "Molecular Cell"
+    categories: [ED]
+    status: integrated
+    module_source: "Alerasool_2022_SupTable.xlsx / tAD-seq"
+
+  - doi: "10.1038/s41586-023-05906-y"
+    title: "Massively parallel characterization of transcriptional regulatory elements in three-dimensional genome organization"
+    year: 2023
+    journal: "Nature"
+    categories: [ED]
+    status: integrated
+    module_source: "DelRosso_2023_SupTable.xlsx / Activation + Repression Domains"
+
+  - doi: "10.1016/j.molcel.2021.11.007"
+    title: "A compendium of human transcription factor effector domains"
+    year: 2021
+    journal: "Molecular Cell"
+    categories: [ED]
+    status: integrated
+    module_source: "Compendium_2021_SupTable.xlsx / Table S2"
+
+  - doi: "10.1016/j.cell.2020.11.024"
+    title: "High-throughput discovery and characterization of human transcriptional effectors"
+    year: 2021
+    journal: "Cell"
+    categories: [ED]
+    status: integrated
+    module_source: "HiTEff_SupTable.xlsx / NucAct_data + NucRepr_data"
+
+  - doi: "10.1093/nar/gkab1193"
+    title: "EpiFactors 2022: expansion and enhancement of a curated database of human epigenetic factors and complexes"
+    year: 2022
+    journal: "Nucleic Acids Research"
+    categories: [CR]
+    status: integrated
+    module_source: "EpiGenes_main.csv"

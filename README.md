@@ -192,6 +192,31 @@ The `date_modified` field is updated automatically.
 
 ---
 
+## Literature search
+
+A semi-automated pipeline for discovering new papers to integrate into the library.
+Run every 1–3 months from the project root:
+
+```bash
+# 1. Query PubMed + Semantic Scholar; deduplicate against known papers
+python literature/01_search.py
+
+# 2. Score candidates and generate a Markdown review report
+python literature/02_triage.py
+# → opens literature/reviews/review_YYYY-MM-DD.md for human review
+
+# 3. Edit literature/papers.yaml: add accepted/rejected entries from the report
+#    Then validate:
+python literature/03_record.py
+```
+
+**After accepting a paper:** add its supplementary data to `data/manual/`, wire it
+into `SCREEN_FILES` in the relevant script, and re-run the pipeline.
+
+See `literature/search_queries.yaml` to add or tune search terms.
+
+---
+
 ## Version history
 
 See `library/build_manifest.json` for per-run provenance.

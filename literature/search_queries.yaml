@@ -1,0 +1,53 @@
+# literature/search_queries.yaml
+# Search queries sent to PubMed and Semantic Scholar.
+# Add new queries here as the field evolves.
+# category: maps hits to DBD / ED / CR for triage scoring.
+
+queries:
+  - id: dbd_screen
+    category: DBD
+    pubmed: >
+      ("DNA-binding domain"[tiab] OR "transcription factor"[tiab])
+      AND ("high-throughput"[tiab] OR "screen"[tiab] OR "library"[tiab])
+      AND ("binding domain"[tiab] OR "zinc finger"[tiab] OR "homeodomain"[tiab])
+    semantic_scholar: "high-throughput DNA-binding domain transcription factor screen"
+
+  - id: ed_activation
+    category: ED
+    pubmed: >
+      ("activation domain"[tiab] OR "transcriptional activator"[tiab]
+       OR "effector domain"[tiab])
+      AND ("screen"[tiab] OR "tiling"[tiab] OR "high-throughput"[tiab]
+           OR "characterization"[tiab])
+    semantic_scholar: "activation domain transcriptional effector high-throughput screen"
+
+  - id: ed_repression
+    category: ED
+    pubmed: >
+      ("repression domain"[tiab] OR "transcriptional repressor"[tiab]
+       OR "KRAB domain"[tiab] OR "silencing domain"[tiab])
+      AND ("screen"[tiab] OR "high-throughput"[tiab] OR "characterization"[tiab])
+    semantic_scholar: "repression domain KRAB silencer high-throughput screen"
+
+  - id: cr_remodeler
+    category: CR
+    pubmed: >
+      ("chromatin remodeler"[tiab] OR "histone acetyltransferase"[tiab]
+       OR "histone deacetylase"[tiab] OR "histone methyltransferase"[tiab])
+      AND ("domain"[tiab] OR "catalytic"[tiab])
+      AND ("screen"[tiab] OR "engineering"[tiab] OR "synthetic"[tiab])
+    semantic_scholar: "chromatin remodeler domain screen synthetic biology engineering"
+
+  - id: synthetic_tf
+    category: ED
+    pubmed: >
+      ("synthetic transcription factor"[tiab] OR "engineered transcription factor"[tiab]
+       OR "CRISPRa"[tiab] OR "CRISPRi"[tiab])
+      AND ("effector"[tiab] OR "activator"[tiab] OR "repressor"[tiab])
+    semantic_scholar: "synthetic engineered transcription factor effector CRISPRa CRISPRi"
+
+# How many results to fetch per query per source
+max_results_per_query: 50
+
+# Only include papers from this year onwards
+min_year: 2018
