@@ -67,6 +67,14 @@ papers:
     status: integrated
     module_source: "EpiGenes_main.csv"
 
+  - doi: "10.7554/eLife.68068"
+    title: "Simple biochemical features underlie transcriptional activation domain diversity and dynamic, fuzzy binding to Mediator"
+    year: 2021
+    journal: "eLife"
+    categories: [ED]
+    status: rejected
+    notes: "Primarily yeast study; 150 ADs identified in yeast TFs, not human/mouse. PADDLE predictor (paddle.stanford.edu) noted but not needed."
+
   - doi: "10.1016/j.cels.2022.01.002"
     title: "Directed mutational scanning reveals a balance between acidic and hydrophobic residues in strong human activation domains"
     year: 2022
