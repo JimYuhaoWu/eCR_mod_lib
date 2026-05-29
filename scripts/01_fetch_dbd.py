@@ -27,6 +27,8 @@ Reproducibility
   with a matching checksum are not re-fetched.
 """
 
+from __future__ import annotations
+
 import argparse
 import sys
 import time

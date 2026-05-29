@@ -4,6 +4,8 @@ scripts/utils.py
 Shared helpers: logging, checksums, download manifests, build manifests.
 """
 
+from __future__ import annotations
+
 import hashlib
 import json
 import logging

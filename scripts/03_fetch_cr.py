@@ -25,6 +25,8 @@ Run
   python scripts/03_fetch_cr.py [--config config/sources.yaml] [--dry-run]
 """
 
+from __future__ import annotations
+
 import argparse
 import sys
 import time
