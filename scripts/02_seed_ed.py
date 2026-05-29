@@ -225,6 +225,86 @@ SCREEN_FILES = {
             "and save as data/manual/DelRosso_2023_SupTable.xlsx"
         ),
     },
+    # Compendium of human TF effector domains — experimentally characterised ADs/RDs.
+    # Filter: Activity H or M (drop L, NaN, S). Validation: ChIP-validated.
+    "Compendium_2021_activators": {
+        "path": MANUAL_DIR / "Compendium_2021_SupTable.xlsx",
+        "doi": "10.1016/j.molcel.2021.11.007",
+        "sheet": "Table S2",
+        "col_name": None,
+        "col_gene": "TF name",
+        "col_fragment": "Effector domain ID",
+        "col_sequence": "Sequence",
+        "col_score": "Activity (H, M or L)",
+        "score_map": {"H": 1.0, "M": 0.5},
+        "col_hit": "Activity (H, M or L)",
+        "col_hit_values": ["H", "M"],
+        "row_prefilter": {"col": "Domain type", "value": "AD"},
+        "subtype_override": "activator",
+        "validation_level_override": "ChIP-validated",
+        "notes": (
+            "Download Supplementary Table 2 (mmc8.xlsx) from "
+            "https://doi.org/10.1016/j.molcel.2021.11.007 "
+            "and save as data/manual/Compendium_2021_SupTable.xlsx"
+        ),
+    },
+    "Compendium_2021_repressors": {
+        "path": MANUAL_DIR / "Compendium_2021_SupTable.xlsx",
+        "doi": "10.1016/j.molcel.2021.11.007",
+        "sheet": "Table S2",
+        "col_name": None,
+        "col_gene": "TF name",
+        "col_fragment": "Effector domain ID",
+        "col_sequence": "Sequence",
+        "col_score": "Activity (H, M or L)",
+        "score_map": {"H": 1.0, "M": 0.5},
+        "col_hit": "Activity (H, M or L)",
+        "col_hit_values": ["H", "M"],
+        "row_prefilter": {"col": "Domain type", "value": "RD"},
+        "subtype_override": "repressor",
+        "validation_level_override": "ChIP-validated",
+        "notes": (
+            "Download Supplementary Table 2 (mmc8.xlsx) from "
+            "https://doi.org/10.1016/j.molcel.2021.11.007 "
+            "and save as data/manual/Compendium_2021_SupTable.xlsx"
+        ),
+    },
+    # High-throughput nuclear domain screens (Pfam-domain library).
+    # DOI: TODO — confirm from paper. Validation: screen-validated.
+    "HiTEff_activators": {
+        "path": MANUAL_DIR / "HiTEff_SupTable.xlsx",
+        "doi": "TODO",
+        "sheet": "NucAct_data",
+        "col_name": None,
+        "col_gene": "Gene entry name",
+        "col_fragment": "Domain ID",
+        "col_sequence": "Extended Domain sequence",
+        "col_score": "Avg Act",
+        "col_hit": "Hit",
+        "col_hit_values": [True],
+        "subtype_override": "activator",
+        "notes": (
+            "Save mmc4.xlsx from the high-throughput effector screen paper "
+            "as data/manual/HiTEff_SupTable.xlsx"
+        ),
+    },
+    "HiTEff_repressors": {
+        "path": MANUAL_DIR / "HiTEff_SupTable.xlsx",
+        "doi": "TODO",
+        "sheet": "NucRepr_data",
+        "col_name": None,
+        "col_gene": "Gene entry name",
+        "col_fragment": "Domain ID",
+        "col_sequence": "Extended Domain sequence",
+        "col_score": "Avg ReprD13",
+        "col_hit": "Hit",
+        "col_hit_values": [True],
+        "subtype_override": "repressor",
+        "notes": (
+            "Save mmc4.xlsx from the high-throughput effector screen paper "
+            "as data/manual/HiTEff_SupTable.xlsx"
+        ),
+    },
 }
 
 
@@ -255,11 +335,20 @@ def process_screen_data(log) -> list[dict]:
             log.error(f"[{screen_name}] parse error: {e}")
             continue
 
-        # Filter to hits only if a hit column is specified
+        # Apply row pre-filter (e.g. restrict to a specific domain type)
+        pf = info.get("row_prefilter")
+        if pf and pf["col"] in df.columns:
+            df = df[df[pf["col"]].astype(str).str.strip() == str(pf["value"])]
+
+        # Filter to hits — supports single value (str) or list of values
         col_hit = info.get("col_hit")
         hit_val = info.get("hit_value")
-        if col_hit and col_hit in df.columns and hit_val:
-            df = df[df[col_hit].str.strip().str.lower() == hit_val.lower()]
+        hit_vals = info.get("col_hit_values")
+        if col_hit and col_hit in df.columns:
+            if hit_vals is not None:
+                df = df[df[col_hit].isin(hit_vals)]
+            elif hit_val:
+                df = df[df[col_hit].astype(str).str.strip().str.lower() == hit_val.lower()]
 
         col_n = info["col_name"]
         col_s = info.get("col_sequence")
@@ -288,8 +377,13 @@ def process_screen_data(log) -> list[dict]:
 
             score = None
             col_score_used = col_q
+            score_map = info.get("score_map")
             if col_q and col_q in df.columns:
-                score = _parse_score(row[col_q])
+                raw_val = row[col_q]
+                if score_map and str(raw_val).strip() in score_map:
+                    score = score_map[str(raw_val).strip()]
+                else:
+                    score = _parse_score(raw_val)
             # Fall back to secondary score column if primary is null
             if score is None:
                 col_fb = info.get("col_score_fallback")
@@ -317,7 +411,7 @@ def process_screen_data(log) -> list[dict]:
                 "quantitative_metric": score,
                 "quantitative_metric_label": col_score_used,
                 "quantitative_metric_source": info["doi"],
-                "validation_level": "screen-validated",
+                "validation_level": info.get("validation_level_override", "screen-validated"),
                 "source": screen_name,
                 "source_doi": info["doi"],
                 "source_version": "supplementary_table",
