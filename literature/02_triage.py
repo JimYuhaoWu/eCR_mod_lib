@@ -70,6 +70,16 @@ SCORE_WEIGHTS: dict[str, float] = {
     "commentary": -1.5,
     "erratum": -3.0,
     "correction": -3.0,
+    # Non-human/mouse organisms
+    "arabidopsis": -3.0,
+    "yeast": -2.0,
+    "drosophila": -2.0,
+    "zebrafish": -2.0,
+    "plant": -2.0,
+    "fungal": -2.0,
+    "bacterial": -2.0,
+    "caenorhabditis": -2.0,
+    "xenopus": -2.0,
 }
 
 CATEGORY_BONUS: dict[str, dict[str, float]] = {

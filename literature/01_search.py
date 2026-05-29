@@ -179,18 +179,21 @@ def main():
 
     all_candidates: list[dict] = []
 
+    organism_filter = cfg.get("pubmed_organism_filter", "")
+
     for q in cfg["queries"]:
         qid = q["id"]
         category = q["category"]
+        pubmed_query = f"{q['pubmed'].strip()} {organism_filter}".strip()
         print(f"\n[{qid}] category={category}")
 
         if args.dry_run:
-            print(f"  PubMed query: {q['pubmed'][:80]}...")
+            print(f"  PubMed query: {pubmed_query[:100]}...")
             print(f"  SS query:     {q['semantic_scholar']}")
             continue
 
         # PubMed
-        pm_results = search_pubmed(q["pubmed"], min_year, max_results)
+        pm_results = search_pubmed(pubmed_query, min_year, max_results)
         print(f"  PubMed: {len(pm_results)} results")
         for r in pm_results:
             r["query_id"] = qid

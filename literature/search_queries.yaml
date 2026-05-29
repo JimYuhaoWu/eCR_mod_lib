@@ -2,6 +2,13 @@
 # Search queries sent to PubMed and Semantic Scholar.
 # Add new queries here as the field evolves.
 # category: maps hits to DBD / ED / CR for triage scoring.
+#
+# PubMed organism filter applied to all queries:
+#   AND (humans[MH] OR mice[MH])
+# Semantic Scholar queries include "human mouse" to bias results.
+
+# Organism filter appended to every PubMed query
+pubmed_organism_filter: "AND (humans[MH] OR mice[MH])"
 
 queries:
   - id: dbd_screen
@@ -10,7 +17,7 @@ queries:
       ("DNA-binding domain"[tiab] OR "transcription factor"[tiab])
       AND ("high-throughput"[tiab] OR "screen"[tiab] OR "library"[tiab])
       AND ("binding domain"[tiab] OR "zinc finger"[tiab] OR "homeodomain"[tiab])
-    semantic_scholar: "high-throughput DNA-binding domain transcription factor screen"
+    semantic_scholar: "high-throughput DNA-binding domain human transcription factor screen"
 
   - id: ed_activation
     category: ED
@@ -19,7 +26,7 @@ queries:
        OR "effector domain"[tiab])
       AND ("screen"[tiab] OR "tiling"[tiab] OR "high-throughput"[tiab]
            OR "characterization"[tiab])
-    semantic_scholar: "activation domain transcriptional effector high-throughput screen"
+    semantic_scholar: "activation domain human transcriptional effector high-throughput screen"
 
   - id: ed_repression
     category: ED
@@ -27,7 +34,7 @@ queries:
       ("repression domain"[tiab] OR "transcriptional repressor"[tiab]
        OR "KRAB domain"[tiab] OR "silencing domain"[tiab])
       AND ("screen"[tiab] OR "high-throughput"[tiab] OR "characterization"[tiab])
-    semantic_scholar: "repression domain KRAB silencer high-throughput screen"
+    semantic_scholar: "repression domain KRAB human silencer high-throughput screen"
 
   - id: cr_remodeler
     category: CR
@@ -36,7 +43,7 @@ queries:
        OR "histone deacetylase"[tiab] OR "histone methyltransferase"[tiab])
       AND ("domain"[tiab] OR "catalytic"[tiab])
       AND ("screen"[tiab] OR "engineering"[tiab] OR "synthetic"[tiab])
-    semantic_scholar: "chromatin remodeler domain screen synthetic biology engineering"
+    semantic_scholar: "chromatin remodeler domain human mouse screen synthetic biology engineering"
 
   - id: synthetic_tf
     category: ED
@@ -44,7 +51,7 @@ queries:
       ("synthetic transcription factor"[tiab] OR "engineered transcription factor"[tiab]
        OR "CRISPRa"[tiab] OR "CRISPRi"[tiab])
       AND ("effector"[tiab] OR "activator"[tiab] OR "repressor"[tiab])
-    semantic_scholar: "synthetic engineered transcription factor effector CRISPRa CRISPRi"
+    semantic_scholar: "synthetic engineered human transcription factor effector CRISPRa CRISPRi"
 
 # How many results to fetch per query per source
 max_results_per_query: 50

@@ -66,3 +66,19 @@ papers:
     categories: [CR]
     status: integrated
     module_source: "EpiGenes_main.csv"
+
+  - doi: "10.1016/j.ijbiomac.2026.151659"
+    title: "BEL1-like homeodomain transcription factor SAWTOOTH1 (MdSAW1) in Malus domestica enhances the tolerance of transgenic apple and Arabidopsis to zinc excess stress"
+    year: 2026
+    journal: "International Journal of Biological Macromolecules"
+    categories: [DBD]
+    status: rejected
+    notes: "Organism is Prunus avium / Malus domestica (plant) — not human or mouse"
+
+  - doi: "10.1111/tpj.70380"
+    title: "The characterization of the LEAFY COTYLEDON 2 activation domains reveals its conserved dual mode of action in flowering plants"
+    year: 2025
+    journal: "The Plant Journal"
+    categories: [ED]
+    status: rejected
+    notes: "Plant study (Arabidopsis / flowering plants) — not human or mouse"
