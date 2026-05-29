@@ -331,6 +331,10 @@ def main():
     session = requests.Session()
     session.headers.update({"User-Agent": "module_library/1.0 (research; contact: see paper)"})
 
+    # Ensure all raw subdirectories exist (not committed to git)
+    for subdir in ("animaltfdb", "uniprot", "jaspar"):
+        (RAW_DIR / subdir).mkdir(parents=True, exist_ok=True)
+
     manifest = load_manifest(RAW_DIR)
 
     # 1. AnimalTFDB

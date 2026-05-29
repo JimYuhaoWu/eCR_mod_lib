@@ -304,6 +304,9 @@ def main():
     session.headers.update({"User-Agent": "module_library/1.0 (research)"})
 
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+    for subdir in ("epifactors",):
+        (RAW_DIR / subdir).mkdir(parents=True, exist_ok=True)
+
     manifest = load_manifest(RAW_DIR)
 
     # 1. Curated CRs
