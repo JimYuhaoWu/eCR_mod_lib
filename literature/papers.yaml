@@ -117,6 +117,30 @@ papers:
     status: integrated
     module_source: "TENet_2024_media-6.xlsx / RD-DMS sheet, 51 unique WT repressor domains (deduplicated)"
 
+  - doi: "10.1158/1538-7445.am2019-2761"
+    title: "Development of synthetic guide RNA libraries for CRISPR-mediated transcriptional activation screening for gain-of-function studies"
+    year: 2019
+    journal: "Cancer Research (AACR Meeting Abstracts)"
+    categories: [ED]
+    status: rejected
+    notes: "Conference abstract only — no full paper. Describes dCas9-based CRISPRa as a tool for gain-of-function screening. No new effector domain characterization or sequences."
+
+  - doi: "10.1101/2024.03.21.585809"
+    title: "Mutational scanning of CRX classifies clinical variants and reveals biochemical properties of the transcriptional effector domain"
+    year: 2024
+    journal: "bioRxiv (preprint)"
+    categories: [ED]
+    status: rejected
+    notes: "Deep mutational scan of CRX (photoreceptor TF) — ~5,285 single-AA variant activity scores for clinical variant classification (ClinVar/CRD/LCA). Reveals compositional rules of CRX's own intrinsically disordered effector domain. Single-gene mechanistic/clinical study; no extractable multi-domain catalog. CRX is cell-type-specific (photoreceptor), limiting utility in general synthetic TF design."
+
+  - doi: "10.1016/j.ymeth.2014.06.014"
+    title: "Engineering synthetic TALE and CRISPR/Cas9 transcription factors for regulating gene expression"
+    year: 2014
+    journal: "Methods"
+    categories: [ED]
+    status: rejected
+    notes: "Review/methods paper describing TALE and CRISPR/Cas9 synthetic TF platforms. No primary domain sequences or activity data."
+
   - doi: "10.1038/s41587-022-01624-4"
     title: "A universal deep-learning model for zinc finger design enables transcription factor reprogramming"
     year: 2023
