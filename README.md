@@ -11,12 +11,12 @@ from scratch at any future point.
 
 ## Current library size
 
-**~10,500 records** — last built 2026-05-30 (rebuild pending on server)
+**~10,700 records** — last built 2026-05-30 (rebuild pending on server)
 
-| Type | Count |
+| Type | Approx. count |
 |---|---|
 | DBD | ~3,250 |
-| ED | ~4,900 |
+| ED | ~7,600 |
 | CR | ~540 |
 
 | Validation level | Meaning |
@@ -71,6 +71,8 @@ module_library/
 │       ├── Kristof_2025_MOESM1.xlsx
 │       ├── Mukund_2023_mmc4.xlsx    # pairs data — not yet integrated
 │       ├── Mukund_2023_mmc5.xlsx    # full Pfam screen — not yet integrated
+│       ├── TENet_2024_media-6.xlsx  # TENet preprint RD-DMS (committed)
+│       ├── TENet_2024_media-5.xlsx  # TENet designed sequences (not yet integrated)
 │       └── EpiGenes_main.csv
 ├── library/
 │   ├── module_library.db          # SQLite (git-ignored)
