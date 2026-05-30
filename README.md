@@ -80,6 +80,7 @@ module_library/
 │   ├── build_manifest.json        # full build provenance (committed)
 │   └── qc_report.tsv              # QC check results (committed)
 ├── logs/                          # timestamped run logs (git-ignored)
+├── pyproject.toml                 # package metadata (installs as ecr_mod_lib)
 ├── requirements.txt               # pip dependencies
 ├── env.yml                        # conda environment
 └── README.md
@@ -99,6 +100,29 @@ pip install -r requirements.txt
 ```
 
 Requires Python 3.8+.
+
+### Using as a Python package
+
+The library is installable as `ecr_mod_lib`, which exposes the `scripts/` package for programmatic access:
+
+```bash
+pip install -e /path/to/eCR_mod_lib
+```
+
+```python
+from scripts.schema import ModuleLibrary
+
+with ModuleLibrary("library/module_library.db") as lib:
+    df = lib.to_dataframe("DBD")
+```
+
+---
+
+## Related projects
+
+| Project | Description |
+|---|---|
+| [eCR_predictor](https://github.com/JimYuhaoWu/eCR_predictor) | Predicts DBD binding candidates for a given DNA sequence; depends on this library as `ecr_mod_lib` |
 
 ---
 

@@ -14,6 +14,22 @@ MEF→iPSC reprogramming research. GitHub: https://github.com/JimYuhaoWu/eCR_mod
 | ED | ~7,700 | 11 sources — see SCREEN_FILES in scripts/02_seed_ed.py |
 | CR | ~540 | EpiFactors v2.0 + curated YAML |
 
+## Package installation
+
+This repo is installable as the `ecr_mod_lib` Python package (exposes `scripts/` as a package):
+
+```bash
+pip install -e /path/to/module_library
+```
+
+Then import with:
+
+```python
+from scripts.schema import ModuleLibrary
+```
+
+Used as a dependency by **[eCR_predictor](https://github.com/JimYuhaoWu/eCR_predictor)** — a tool that queries the library to predict DBD binding candidates for a given DNA sequence.
+
 ## Running the pipeline (Linux server)
 
 ```bash
@@ -50,6 +66,8 @@ Add an entry to `SCREEN_FILES` dict in `scripts/02_seed_ed.py`. Supported keys:
 | `deduplicate_on` | Deduplicate df on this column before creating records |
 | `merge_file` + `merge_on` + `merge_extract` | Join a second file to add UniProt IDs etc. |
 | `validation_level_override` | `screen-validated` or `ChIP-validated` |
+| `exclude_labels_from` | List of `{path, sheet, col}` dicts — rows whose label matches any entry are dropped (used to avoid re-importing entries already present in another source) |
+| `col_label` | Column in the current file to match against `exclude_labels_from` references |
 
 Then copy the supplementary file to `data/manual/`, add to `literature/papers.yaml`
 with `status: integrated`, and re-run the pipeline.
