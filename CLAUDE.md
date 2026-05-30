@@ -24,8 +24,7 @@ python scripts/04_build_library.py    # or --rebuild for full rebuild
 python scripts/05_validate.py         # QC; review library/qc_report.tsv
 ```
 
-Python is at `C:\Users\86199\AppData\Local\Programs\Python\Python312\python.exe` on Windows.
-Use `python` on the Linux server (confirmed Python 3.8+, all deps in requirements.txt).
+Use `python` on both Windows (Python 3.12.4, PATH configured) and the Linux server (confirmed Python 3.8+, all deps in requirements.txt).
 
 ## How to add a new ED source
 
@@ -98,8 +97,7 @@ are tracked in `literature/papers.yaml`.
 ## Known issues / QC flags
 
 - `dbd_no_identifier` (~421 DBDs): no UniProt or JASPAR hit — real data gaps in AnimalTFDB
-- The `python` command on Windows resolves to Windows Store stub; use full path or fix PATH:
-  `C:\Users\86199\AppData\Local\Programs\Python\Python312\python.exe`
+- `python` on Windows now resolves to Python 3.12.4 (PATH configured, App Execution Aliases disabled)
 - `library/build_manifest.json` conflict: always prefer server version (authoritative rebuild)
 
 ## Key people
