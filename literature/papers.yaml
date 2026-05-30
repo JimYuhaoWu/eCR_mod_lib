@@ -114,8 +114,8 @@ papers:
     year: 2024
     journal: "bioRxiv (preprint)"
     categories: [ED]
-    status: pending
-    notes: "TENet preprint (Valbuena, Nigam, Tycko et al.). 115,000+ variants across 54 RDs + directed evolution designs. Awaiting supplementary tables (54 WT RD sequences with activities + TENet-designed novel sequences)."
+    status: integrated
+    module_source: "TENet_2024_media-6.xlsx / RD-DMS sheet, 51 unique WT repressor domains (deduplicated)"
 
   # ── Papers pending human review ───────────────────────────────────────────────
 

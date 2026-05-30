@@ -452,6 +452,30 @@ SCREEN_FILES = {
         ),
     },
 
+    # ── TENet 2024 preprint — 54 WT repressor domains from DMS study ─────────────
+    # media-6 has all clinical variants; deduplicate on repressor_domain to get
+    # one WT entry per domain. log2_offon_wt is the WT activity from HT-recruit.
+    "TENet_2024_RDs": {
+        "path": MANUAL_DIR / "TENet_2024_media-6.xlsx",
+        "doi": "10.1101/2024.09.21.614253",
+        "sheet": "RD-DMS",
+        "col_name": "repressor_domain",
+        "col_gene": "gene_hgnc_id",
+        "col_fragment": None,
+        "col_uniprot": "uniprot_id",
+        "col_sequence": "wt_aa",
+        "col_score": "log2_offon_wt",
+        "col_hit": None,
+        "deduplicate_on": "repressor_domain",
+        "subtype_override": "repressor",
+        "validation_level_override": "screen-validated",
+        "notes": (
+            "Download media-6.xlsx from https://doi.org/10.1101/2024.09.21.614253 "
+            "and save as data/manual/TENet_2024_media-6.xlsx. "
+            "Preprint — update DOI when published."
+        ),
+    },
+
     # ── Kristof 2025 Genome Biology — engineered CRISPRi repressors ──────────────
     # ST1 lists repressor domain constructs with AA sequences used in the paper.
     # Treated as ChIP-validated (experimentally characterised, not a pooled screen).
@@ -546,6 +570,11 @@ def process_screen_data(log) -> list[dict]:
                 df = df[df[col_hit].astype(str).isin(str_vals)]
             elif hit_val:
                 df = df[df[col_hit].astype(str).str.strip().str.lower() == hit_val.lower()]
+
+        # Deduplicate on a column (e.g. keep one WT row per domain)
+        dedup_col = info.get("deduplicate_on")
+        if dedup_col and dedup_col in df.columns:
+            df = df.drop_duplicates(subset=[dedup_col], keep="first")
 
         # Numeric score threshold filter
         min_score = info.get("min_score_threshold")

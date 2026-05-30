@@ -153,6 +153,7 @@ python scripts/04_build_library.py --rebuild
 | [Tycko et al. 2025](https://doi.org/10.1038/s41587-024-02442-6) | ST3 CD2 ADs (38) + ST3 CD43 RDs (1,223); compact effectors, multi-context | screen-validated | 10.1038/s41587-024-02442-6 |
 | [Ludwig et al. 2023](https://doi.org/10.1016/j.cels.2023.05.008) | Viral EDs: vTR (195) + CoV (135) + HHV (268); activators + repressors | screen-validated | 10.1016/j.cels.2023.05.008 |
 | [Kristof et al. 2025](https://doi.org/10.1186/s13059-025-03640-4) | 81 engineered CRISPRi repressor domain constructs | ChIP-validated | 10.1186/s13059-025-03640-4 |
+| [Valbuena, Nigam, Tycko et al. 2024](https://doi.org/10.1101/2024.09.21.614253) *(preprint)* | 51 WT repressor domains from DMS study; HT-recruit scores | screen-validated | 10.1101/2024.09.21.614253 |
 
 ### CR
 
