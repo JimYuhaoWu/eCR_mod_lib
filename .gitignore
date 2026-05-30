@@ -9,3 +9,6 @@ __pycache__/
 *.pyc
 .env
 .claude/
+# Prevent accidentally committing files that belong in subdirectories
+/module_library.tsv
+/review_*.md
