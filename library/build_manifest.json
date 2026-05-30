@@ -87,6 +87,367 @@
         }
       ],
       "notes": "updated=0  rebuild=False"
+    },
+    {
+      "script": "01_fetch_dbd.py",
+      "timestamp": "2026-05-29T09:37:04.247324+00:00",
+      "records_added": 3248,
+      "sources": [
+        {
+          "name": "AnimalTFDB",
+          "version": "4.0",
+          "doi": "10.1093/nar/gkad625"
+        },
+        {
+          "name": "UniProt",
+          "version": "2024_02"
+        },
+        {
+          "name": "JASPAR",
+          "version": "2024",
+          "doi": "10.1093/nar/gkad1059"
+        }
+      ],
+      "notes": "dry_run=False  limit=0"
+    },
+    {
+      "script": "02_seed_ed.py",
+      "timestamp": "2026-05-29T09:45:40.063173+00:00",
+      "records_added": 10,
+      "sources": [
+        {
+          "name": "ed_curated.yaml",
+          "version": "manual_v1"
+        },
+        {
+          "name": "Alerasool_2022",
+          "doi": "10.1038/s41588-022-01119-9"
+        },
+        {
+          "name": "DelRosso_2023",
+          "doi": "10.1038/s41586-023-06415-8"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "script": "02_seed_ed.py",
+      "timestamp": "2026-05-29T09:58:11.528324+00:00",
+      "records_added": 10,
+      "sources": [
+        {
+          "name": "ed_curated.yaml",
+          "version": "manual_v1"
+        },
+        {
+          "name": "Alerasool_2022",
+          "doi": "10.1016/j.molcel.2021.12.005"
+        },
+        {
+          "name": "DelRosso_2023",
+          "doi": "10.1038/s41586-023-05906-y"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "script": "02_seed_ed.py",
+      "timestamp": "2026-05-29T09:58:40.342226+00:00",
+      "records_added": 10,
+      "sources": [
+        {
+          "name": "ed_curated.yaml",
+          "version": "manual_v1"
+        },
+        {
+          "name": "Alerasool_2022",
+          "doi": "10.1016/j.molcel.2021.12.005"
+        },
+        {
+          "name": "DelRosso_2023",
+          "doi": "10.1038/s41586-023-05906-y"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "script": "02_seed_ed.py",
+      "timestamp": "2026-05-29T09:59:31.819478+00:00",
+      "records_added": 4321,
+      "sources": [
+        {
+          "name": "ed_curated.yaml",
+          "version": "manual_v1"
+        },
+        {
+          "name": "Alerasool_2022",
+          "doi": "10.1016/j.molcel.2021.12.005"
+        },
+        {
+          "name": "DelRosso_2023",
+          "doi": "10.1038/s41586-023-05906-y"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "script": "03_fetch_cr.py",
+      "timestamp": "2026-05-29T09:59:57.299790+00:00",
+      "records_added": 5,
+      "sources": [
+        {
+          "name": "cr_curated.yaml",
+          "version": "manual_v1"
+        },
+        {
+          "name": "EpiFactors",
+          "version": "2.0",
+          "doi": "10.1093/nar/gkab1193"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "script": "03_fetch_cr.py",
+      "timestamp": "2026-05-29T10:22:24.364852+00:00",
+      "records_added": 539,
+      "sources": [
+        {
+          "name": "cr_curated.yaml",
+          "version": "manual_v1"
+        },
+        {
+          "name": "EpiFactors",
+          "version": "2.0",
+          "doi": "10.1093/nar/gkab1193"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "script": "04_build_library.py",
+      "timestamp": "2026-05-29T10:24:03.737684+00:00",
+      "records_added": 7408,
+      "sources": [
+        {
+          "module_type": "DBD",
+          "source_file": "/mnt3/wuyuhao/eCR/eCR_mod_lib/data/processed/dbd_raw.tsv",
+          "records_in_file": 3248,
+          "inserted": 3248,
+          "updated": 0
+        },
+        {
+          "module_type": "ED",
+          "source_file": "/mnt3/wuyuhao/eCR/eCR_mod_lib/data/processed/ed_raw.tsv",
+          "records_in_file": 4321,
+          "inserted": 3623,
+          "updated": 698
+        },
+        {
+          "module_type": "CR",
+          "source_file": "/mnt3/wuyuhao/eCR/eCR_mod_lib/data/processed/cr_raw.tsv",
+          "records_in_file": 539,
+          "inserted": 537,
+          "updated": 2
+        }
+      ],
+      "notes": "updated=700  rebuild=False"
+    },
+    {
+      "script": "02_seed_ed.py",
+      "timestamp": "2026-05-29T14:54:51.338459+00:00",
+      "records_added": 4321,
+      "sources": [
+        {
+          "name": "ed_curated.yaml",
+          "version": "manual_v1"
+        },
+        {
+          "name": "Alerasool_2022",
+          "doi": "10.1016/j.molcel.2021.12.005"
+        },
+        {
+          "name": "DelRosso_2023",
+          "doi": "10.1038/s41586-023-05906-y"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "script": "04_build_library.py",
+      "timestamp": "2026-05-29T14:55:02.462238+00:00",
+      "records_added": 0,
+      "sources": [
+        {
+          "module_type": "DBD",
+          "source_file": "/mnt3/wuyuhao/eCR/eCR_mod_lib/data/processed/dbd_raw.tsv",
+          "records_in_file": 3248,
+          "inserted": 0,
+          "updated": 3248
+        },
+        {
+          "module_type": "ED",
+          "source_file": "/mnt3/wuyuhao/eCR/eCR_mod_lib/data/processed/ed_raw.tsv",
+          "records_in_file": 4321,
+          "inserted": 0,
+          "updated": 4321
+        },
+        {
+          "module_type": "CR",
+          "source_file": "/mnt3/wuyuhao/eCR/eCR_mod_lib/data/processed/cr_raw.tsv",
+          "records_in_file": 539,
+          "inserted": 0,
+          "updated": 539
+        }
+      ],
+      "notes": "updated=8108  rebuild=False"
+    },
+    {
+      "script": "02_seed_ed.py",
+      "timestamp": "2026-05-29T15:15:02.342033+00:00",
+      "records_added": 5543,
+      "sources": [
+        {
+          "name": "ed_curated.yaml",
+          "version": "manual_v1"
+        },
+        {
+          "name": "Alerasool_2022",
+          "doi": "10.1016/j.molcel.2021.12.005"
+        },
+        {
+          "name": "DelRosso_2023",
+          "doi": "10.1038/s41586-023-05906-y"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "script": "04_build_library.py",
+      "timestamp": "2026-05-29T15:15:24.282376+00:00",
+      "records_added": 1216,
+      "sources": [
+        {
+          "module_type": "DBD",
+          "source_file": "/mnt3/wuyuhao/eCR/eCR_mod_lib/data/processed/dbd_raw.tsv",
+          "records_in_file": 3248,
+          "inserted": 0,
+          "updated": 3248
+        },
+        {
+          "module_type": "ED",
+          "source_file": "/mnt3/wuyuhao/eCR/eCR_mod_lib/data/processed/ed_raw.tsv",
+          "records_in_file": 5543,
+          "inserted": 1216,
+          "updated": 4327
+        },
+        {
+          "module_type": "CR",
+          "source_file": "/mnt3/wuyuhao/eCR/eCR_mod_lib/data/processed/cr_raw.tsv",
+          "records_in_file": 539,
+          "inserted": 0,
+          "updated": 539
+        }
+      ],
+      "notes": "updated=8114  rebuild=False"
+    },
+    {
+      "script": "02_seed_ed.py",
+      "timestamp": "2026-05-29T17:25:38.168159+00:00",
+      "records_added": 5598,
+      "sources": [
+        {
+          "name": "ed_curated.yaml",
+          "version": "manual_v1"
+        },
+        {
+          "name": "Alerasool_2022",
+          "doi": "10.1016/j.molcel.2021.12.005"
+        },
+        {
+          "name": "DelRosso_2023",
+          "doi": "10.1038/s41586-023-05906-y"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "script": "04_build_library.py",
+      "timestamp": "2026-05-29T17:25:59.372782+00:00",
+      "records_added": 51,
+      "sources": [
+        {
+          "module_type": "DBD",
+          "source_file": "/mnt3/wuyuhao/eCR/eCR_mod_lib/data/processed/dbd_raw.tsv",
+          "records_in_file": 3248,
+          "inserted": 0,
+          "updated": 3248
+        },
+        {
+          "module_type": "ED",
+          "source_file": "/mnt3/wuyuhao/eCR/eCR_mod_lib/data/processed/ed_raw.tsv",
+          "records_in_file": 5598,
+          "inserted": 51,
+          "updated": 5547
+        },
+        {
+          "module_type": "CR",
+          "source_file": "/mnt3/wuyuhao/eCR/eCR_mod_lib/data/processed/cr_raw.tsv",
+          "records_in_file": 539,
+          "inserted": 0,
+          "updated": 539
+        }
+      ],
+      "notes": "updated=9334  rebuild=False"
+    },
+    {
+      "script": "02_seed_ed.py",
+      "timestamp": "2026-05-30T04:06:04.160542+00:00",
+      "records_added": 7589,
+      "sources": [
+        {
+          "name": "ed_curated.yaml",
+          "version": "manual_v1"
+        },
+        {
+          "name": "Alerasool_2022",
+          "doi": "10.1016/j.molcel.2021.12.005"
+        },
+        {
+          "name": "DelRosso_2023",
+          "doi": "10.1038/s41586-023-05906-y"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "script": "04_build_library.py",
+      "timestamp": "2026-05-30T04:06:54.948072+00:00",
+      "records_added": 10650,
+      "sources": [
+        {
+          "module_type": "DBD",
+          "source_file": "/mnt3/wuyuhao/eCR/eCR_mod_lib/data/processed/dbd_raw.tsv",
+          "records_in_file": 3248,
+          "inserted": 3248,
+          "updated": 0
+        },
+        {
+          "module_type": "ED",
+          "source_file": "/mnt3/wuyuhao/eCR/eCR_mod_lib/data/processed/ed_raw.tsv",
+          "records_in_file": 7589,
+          "inserted": 6865,
+          "updated": 724
+        },
+        {
+          "module_type": "CR",
+          "source_file": "/mnt3/wuyuhao/eCR/eCR_mod_lib/data/processed/cr_raw.tsv",
+          "records_in_file": 539,
+          "inserted": 537,
+          "updated": 2
+        }
+      ],
+      "notes": "updated=726  rebuild=True"
     }
   ]
 }
