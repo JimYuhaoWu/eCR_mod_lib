@@ -83,6 +83,50 @@ papers:
     status: integrated
     module_source: "Staller_2022_mmc5.csv (predictions, Z>=0.5) + Staller_2022_mmc2.csv (WT domains)"
 
+  # ── Integrated 2026-05-30 ────────────────────────────────────────────────────
+
+  - doi: "10.1038/s41587-024-02442-6"
+    title: "Development of compact transcriptional effectors using high-throughput measurements in diverse contexts"
+    year: 2025
+    journal: "Nature Biotechnology"
+    categories: [ED]
+    status: integrated
+    module_source: "Tycko_2025_MOESM3.xlsx / ST3 CD2 ADs (38) + ST3 CD43 RDs (1223)"
+
+  - doi: "10.1016/j.cels.2023.05.008"
+    title: "High-throughput discovery and characterization of viral transcriptional effectors in human cells"
+    year: 2023
+    journal: "Cell Systems"
+    categories: [ED]
+    status: integrated
+    module_source: "Ludwig_2023_mmc4.xlsx / vTR (195) + CoV (135) + HHV (268) domains"
+
+  - doi: "10.1186/s13059-025-03640-4"
+    title: "Engineering novel CRISPRi repressors for highly efficient mammalian gene regulation"
+    year: 2025
+    journal: "Genome Biology"
+    categories: [ED]
+    status: integrated
+    module_source: "Kristof_2025_MOESM1.xlsx / ST1 repressor domains (81)"
+
+  - doi: "10.1101/2024.09.21.614253"
+    title: "Prediction and design of transcriptional repressor domains with large-scale mutational scans and deep learning"
+    year: 2024
+    journal: "bioRxiv (preprint)"
+    categories: [ED]
+    status: pending
+    notes: "TENet preprint (Valbuena, Nigam, Tycko et al.). 115,000+ variants across 54 RDs + directed evolution designs. Awaiting supplementary tables (54 WT RD sequences with activities + TENet-designed novel sequences)."
+
+  # ── Papers pending human review ───────────────────────────────────────────────
+
+  - doi: "10.1016/j.cels.2023.07.001"
+    title: "High-throughput functional characterization of combinations of transcriptional activators and repressors"
+    year: 2023
+    journal: "Cell Systems"
+    categories: [ED]
+    status: pending
+    notes: "Mukund et al. 8,400 ED pairs screened. Individual domain activities available in mmc4-2 (baselines) and mmc5 (full domain data). Largely overlaps HiTEff. Review if unique domains are present."
+
   # ── Auto-rejected 2026-05-30 ─────────────────────────────────────────────────
 
   - doi: "10.1016/j.cels.2025.101349"

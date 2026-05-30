@@ -11,7 +11,7 @@ from scratch at any future point.
 
 ## Current library size
 
-**8,675 records** — last built 2026-05-30
+**~10,500 records** — last built 2026-05-30 (rebuild pending on server)
 
 | Type | Count |
 |---|---|
@@ -66,6 +66,11 @@ module_library/
 │       ├── Staller_2022_mmc2.csv
 │       ├── Staller_2022_mmc4.csv
 │       ├── Staller_2022_mmc5.csv
+│       ├── Tycko_2025_MOESM3.xlsx
+│       ├── Ludwig_2023_mmc4.xlsx
+│       ├── Kristof_2025_MOESM1.xlsx
+│       ├── Mukund_2023_mmc4.xlsx    # pairs data — not yet integrated
+│       ├── Mukund_2023_mmc5.xlsx    # full Pfam screen — not yet integrated
 │       └── EpiGenes_main.csv
 ├── library/
 │   ├── module_library.db          # SQLite (git-ignored)
@@ -145,6 +150,9 @@ python scripts/04_build_library.py --rebuild
 | [Tycko et al. 2020](https://doi.org/10.1016/j.cell.2020.11.024) | NucAct + NucRepr Pfam-domain screens | screen-validated | 10.1016/j.cell.2020.11.024 |
 | [Compendium 2021](https://doi.org/10.1016/j.molcel.2021.11.007) | Table S2, Activity H+M (404 AD + 324 RD) | ChIP-validated | 10.1016/j.molcel.2021.11.007 |
 | [Staller et al. 2022](https://doi.org/10.1016/j.cels.2022.01.002) | 50 predicted novel ADs (Z≥0.5) + 5 WT domains | screen-validated | 10.1016/j.cels.2022.01.002 |
+| [Tycko et al. 2025](https://doi.org/10.1038/s41587-024-02442-6) | ST3 CD2 ADs (38) + ST3 CD43 RDs (1,223); compact effectors, multi-context | screen-validated | 10.1038/s41587-024-02442-6 |
+| [Ludwig et al. 2023](https://doi.org/10.1016/j.cels.2023.05.008) | Viral EDs: vTR (195) + CoV (135) + HHV (268); activators + repressors | screen-validated | 10.1016/j.cels.2023.05.008 |
+| [Kristof et al. 2025](https://doi.org/10.1186/s13059-025-03640-4) | 81 engineered CRISPRi repressor domain constructs | ChIP-validated | 10.1186/s13059-025-03640-4 |
 
 ### CR
 

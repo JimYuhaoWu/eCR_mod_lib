@@ -353,6 +353,127 @@ SCREEN_FILES = {
             "and save as data/manual/HiTEff_SupTable.xlsx"
         ),
     },
+
+    # ── Tycko 2025 NatBiotech — compact effectors, multi-context HT-recruit ──────
+    "Tycko_2025_ADs": {
+        "path": MANUAL_DIR / "Tycko_2025_MOESM3.xlsx",
+        "doi": "10.1038/s41587-024-02442-6",
+        "sheet": "ST3 CD2 ADs",
+        "col_name": None,
+        "col_gene": "HGNC symbol",
+        "col_fragment": "Domain",
+        "col_uniprot": "UniProt ID",
+        "col_sequence": "Sequence",
+        "col_score": "Max Avg Act at CD2 log2(OFF:ON)",
+        "col_hit": None,
+        "subtype_override": "activator",
+        "validation_level_override": "screen-validated",
+        "notes": (
+            "Download 41587_2024_2442_MOESM3_ESM.xlsx from "
+            "https://doi.org/10.1038/s41587-024-02442-6 "
+            "and save as data/manual/Tycko_2025_MOESM3.xlsx"
+        ),
+    },
+    "Tycko_2025_RDs": {
+        "path": MANUAL_DIR / "Tycko_2025_MOESM3.xlsx",
+        "doi": "10.1038/s41587-024-02442-6",
+        "sheet": "ST3 CD43 RDs",
+        "col_name": None,
+        "col_gene": "HGNC symbol",
+        "col_fragment": "Domain",
+        "col_uniprot": "UniProt ID",
+        "col_sequence": "Domain sequence",
+        "col_score": "Max Avg repression at CD43 log2(OFF:ON)",
+        "col_hit": None,
+        "subtype_override": "repressor",
+        "validation_level_override": "screen-validated",
+        "notes": (
+            "Download 41587_2024_2442_MOESM3_ESM.xlsx from "
+            "https://doi.org/10.1038/s41587-024-02442-6 "
+            "and save as data/manual/Tycko_2025_MOESM3.xlsx"
+        ),
+    },
+
+    # ── Ludwig 2023 Cell Systems — viral transcriptional effectors ────────────────
+    # Three sheets (vTR=adenovirus/other, CoV=coronavirus, HHV=herpesvirus).
+    # Effect column determines subtype. Max Sequence = 80aa core domain.
+    "Ludwig_2023_vTR": {
+        "path": MANUAL_DIR / "Ludwig_2023_mmc4.xlsx",
+        "doi": "10.1016/j.cels.2023.05.008",
+        "sheet": "vTR Domains",
+        "col_name": None,
+        "col_gene": "Gene",
+        "col_fragment": "Tile ID",
+        "col_sequence": "Max Sequence",
+        "col_score": "Max Score",
+        "col_hit": None,
+        "col_subtype": "Effect",
+        "subtype_map": {"Activation": "activator", "Repression": "repressor"},
+        "validation_level_override": "screen-validated",
+        "notes": (
+            "Download mmc4.xlsx from https://doi.org/10.1016/j.cels.2023.05.008 "
+            "and save as data/manual/Ludwig_2023_mmc4.xlsx"
+        ),
+    },
+    "Ludwig_2023_CoV": {
+        "path": MANUAL_DIR / "Ludwig_2023_mmc4.xlsx",
+        "doi": "10.1016/j.cels.2023.05.008",
+        "sheet": "CoV Domains",
+        "col_name": None,
+        "col_gene": "Gene",
+        "col_fragment": "Tile ID",
+        "col_sequence": "Max Sequence",
+        "col_score": "Max Score",
+        "col_hit": None,
+        "col_subtype": "Effect",
+        "subtype_map": {"Activation": "activator", "Repression": "repressor"},
+        "validation_level_override": "screen-validated",
+        "notes": (
+            "Download mmc4.xlsx from https://doi.org/10.1016/j.cels.2023.05.008 "
+            "and save as data/manual/Ludwig_2023_mmc4.xlsx"
+        ),
+    },
+    "Ludwig_2023_HHV": {
+        "path": MANUAL_DIR / "Ludwig_2023_mmc4.xlsx",
+        "doi": "10.1016/j.cels.2023.05.008",
+        "sheet": "HHV Domains",
+        "col_name": None,
+        "col_gene": "Gene",
+        "col_fragment": "Tile ID",
+        "col_sequence": "Max Sequence",
+        "col_score": "Max Score",
+        "col_hit": None,
+        "col_subtype": "Effect",
+        "subtype_map": {"Activation": "activator", "Repression": "repressor"},
+        "validation_level_override": "screen-validated",
+        "notes": (
+            "Download mmc4.xlsx from https://doi.org/10.1016/j.cels.2023.05.008 "
+            "and save as data/manual/Ludwig_2023_mmc4.xlsx"
+        ),
+    },
+
+    # ── Kristof 2025 Genome Biology — engineered CRISPRi repressors ──────────────
+    # ST1 lists repressor domain constructs with AA sequences used in the paper.
+    # Treated as ChIP-validated (experimentally characterised, not a pooled screen).
+    "Kristof_2025_RDs": {
+        "path": MANUAL_DIR / "Kristof_2025_MOESM1.xlsx",
+        "doi": "10.1186/s13059-025-03640-4",
+        "sheet": "Supplementary Table S1",
+        "header_row": 2,          # row 0=blank, row 1=section title, row 2=column headers
+        "col_name": "Repressor Domain",
+        "col_gene": None,
+        "col_fragment": None,
+        "col_sequence": "AA Sequence",
+        "col_score": None,
+        "col_hit": None,
+        "subtype_override": "repressor",
+        "validation_level_override": "ChIP-validated",
+        "notes": (
+            "Download 13059_2025_3640_MOESM1_ESM.xlsx from "
+            "https://doi.org/10.1186/s13059-025-03640-4 "
+            "and save as data/manual/Kristof_2025_MOESM1.xlsx"
+        ),
+    },
 }
 
 
@@ -375,8 +496,9 @@ def process_screen_data(log) -> list[dict]:
         log.info(f"[{screen_name}] parsing {info['path']}")
         try:
             sheet = info.get("sheet")
+            header_row = info.get("header_row", 0)
             if info["path"].suffix == ".xlsx":
-                df = pd.read_excel(info["path"], sheet_name=sheet)
+                df = pd.read_excel(info["path"], sheet_name=sheet, header=header_row)
             elif info["path"].suffix == ".csv":
                 df = pd.read_csv(info["path"])
             else:
@@ -490,6 +612,9 @@ def process_screen_data(log) -> list[dict]:
 
             if info.get("subtype_override"):
                 subtype = info["subtype_override"]
+            elif info.get("col_subtype") and info.get("subtype_map"):
+                raw_st = str(row.get(info["col_subtype"], "")).strip()
+                subtype = info["subtype_map"].get(raw_st, "activator")
             else:
                 is_repressor = "repression" in screen_name.lower() or "repression" in (col_q or "")
                 subtype = "repressor" if is_repressor else "activator"
