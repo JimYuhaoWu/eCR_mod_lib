@@ -324,6 +324,55 @@
         }
       ],
       "notes": ""
+    },
+    {
+      "script": "02_seed_ed.py",
+      "timestamp": "2026-05-30T08:15:25.503566+00:00",
+      "records_added": 7699,
+      "sources": [
+        {
+          "name": "ed_curated.yaml",
+          "version": "manual_v1"
+        },
+        {
+          "name": "Alerasool_2022",
+          "doi": "10.1016/j.molcel.2021.12.005"
+        },
+        {
+          "name": "DelRosso_2023",
+          "doi": "10.1038/s41586-023-05906-y"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "script": "04_build_library.py",
+      "timestamp": "2026-05-30T08:15:49.170051+00:00",
+      "records_added": 7544,
+      "sources": [
+        {
+          "module_type": "DBD",
+          "source_file": "D:\\module_library\\data\\processed\\dbd_raw.tsv",
+          "records_in_file": 38,
+          "inserted": 38,
+          "updated": 0
+        },
+        {
+          "module_type": "ED",
+          "source_file": "D:\\module_library\\data\\processed\\ed_raw.tsv",
+          "records_in_file": 7699,
+          "inserted": 6969,
+          "updated": 730
+        },
+        {
+          "module_type": "CR",
+          "source_file": "D:\\module_library\\data\\processed\\cr_raw.tsv",
+          "records_in_file": 539,
+          "inserted": 537,
+          "updated": 2
+        }
+      ],
+      "notes": "updated=732  rebuild=True"
     }
   ]
 }

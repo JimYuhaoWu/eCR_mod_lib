@@ -252,9 +252,9 @@ papers:
     year: 2023
     journal: "Cell Systems"
     categories: [ED]
-    status: accepted
-    notes: "mmc5: 4,168 short nuclear domains; 4,113/4,168 overlap HiTEff by exact label match. Pipeline configured to exclude HiTEff labels — only the 55 unique entries will be loaded (Mukund_2023_activators + Mukund_2023_repressors in SCREEN_FILES). mmc4 (combinatorial pairs) not integrated."
-    module_source: "Mukund_2023_mmc5.xlsx / Sheet1 (55 non-HiTEff entries)"
+    status: integrated
+    notes: "mmc5: 4,168 short nuclear domains; 4,113/4,168 overlap HiTEff by exact label match. exclude_labels_from in SCREEN_FILES filters duplicates automatically — 55 activator + 55 repressor unique entries loaded (110 total). mmc4 (combinatorial pairs) not integrated."
+    module_source: "Mukund_2023_mmc5.xlsx / Sheet1 (110 entries: 55 activators + 55 repressors, non-HiTEff)"
 
   - doi: "10.1016/j.gene.2017.10.058"
     title: "CHD8short, a naturally-occurring truncated form of a chromatin remodeler lacking the helicase domain, is a potent transcriptional coregulator"

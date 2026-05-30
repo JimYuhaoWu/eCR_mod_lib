@@ -11,12 +11,12 @@ from scratch at any future point.
 
 ## Current library size
 
-**~10,700 records** — last built 2026-05-30 (rebuild pending on server)
+**~10,800 records** — last updated 2026-05-30 · full rebuild pending on server
 
 | Type | Approx. count |
 |---|---|
 | DBD | ~3,250 |
-| ED | ~7,600 |
+| ED | ~7,700 |
 | CR | ~540 |
 
 | Validation level | Meaning |
@@ -69,8 +69,8 @@ module_library/
 │       ├── Tycko_2025_MOESM3.xlsx
 │       ├── Ludwig_2023_mmc4.xlsx
 │       ├── Kristof_2025_MOESM1.xlsx
-│       ├── Mukund_2023_mmc4.xlsx    # pairs data — not yet integrated
-│       ├── Mukund_2023_mmc5.xlsx    # full Pfam screen — not yet integrated
+│       ├── Mukund_2023_mmc4.xlsx    # pairs data — not integrated (combinatorial)
+│       ├── Mukund_2023_mmc5.xlsx    # Pfam screen — 55 unique entries integrated
 │       ├── TENet_2024_media-6.xlsx  # TENet preprint RD-DMS (committed)
 │       ├── TENet_2024_media-5.xlsx  # TENet designed sequences (not yet integrated)
 │       └── EpiGenes_main.csv
@@ -156,6 +156,7 @@ python scripts/04_build_library.py --rebuild
 | [Ludwig et al. 2023](https://doi.org/10.1016/j.cels.2023.05.008) | Viral EDs: vTR (195) + CoV (135) + HHV (268); activators + repressors | screen-validated | 10.1016/j.cels.2023.05.008 |
 | [Kristof et al. 2025](https://doi.org/10.1186/s13059-025-03640-4) | 81 engineered CRISPRi repressor domain constructs | ChIP-validated | 10.1186/s13059-025-03640-4 |
 | [Valbuena, Nigam, Tycko et al. 2024](https://doi.org/10.1101/2024.09.21.614253) *(preprint)* | 51 WT repressor domains from DMS study; HT-recruit scores | screen-validated | 10.1101/2024.09.21.614253 |
+| [Mukund et al. 2023](https://doi.org/10.1016/j.cels.2023.07.001) | 55 non-HiTEff short nuclear domains (activators + repressors); HT-recruit assay | screen-validated | 10.1016/j.cels.2023.07.001 |
 
 ### CR
 

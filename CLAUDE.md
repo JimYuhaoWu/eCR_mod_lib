@@ -6,12 +6,12 @@ A curated **module library** of DNA-Binding Domains (DBDs), Effector Domains (ED
 and Chromatin Remodelers (CRs) for engineered transcription factor design, supporting
 MEF→iPSC reprogramming research. GitHub: https://github.com/JimYuhaoWu/eCR_mod_lib
 
-## Current state (~10,700 records, last rebuilt 2026-05-30)
+## Current state (~10,800 records, last rebuilt 2026-05-30)
 
 | Type | Count | Key sources |
 |---|---|---|
 | DBD | ~3,250 | AnimalTFDB v4 (human + mouse), UniProt sequences, JASPAR motifs |
-| ED | ~7,600 | 10 sources — see SCREEN_FILES in scripts/02_seed_ed.py |
+| ED | ~7,700 | 11 sources — see SCREEN_FILES in scripts/02_seed_ed.py |
 | CR | ~540 | EpiFactors v2.0 + curated YAML |
 
 ## Running the pipeline (Linux server)
@@ -69,15 +69,14 @@ are tracked in `literature/papers.yaml`.
 ## Pending work
 
 ### 2026-05 literature cycle — complete
-All 17 candidates reviewed. One paper accepted for integration:
-- **Mukund 2023** (10.1016/j.cels.2023.07.001): 55 unique ED entries not in HiTEff — pipeline configured, run `02_seed_ed.py` to ingest.
+All 17 candidates reviewed. One paper integrated:
+- **Mukund 2023** (10.1016/j.cels.2023.07.001): 55 activator + 55 repressor entries (110 total); `exclude_labels_from` filters the 4,113 HiTEff duplicates automatically. ✓ integrated 2026-05-30.
 
 ### Data not yet integrated (files in data/manual/)
 
 | File | Content | Notes |
 |---|---|---|
 | `TENet_2024_media-5.xlsx` | 220 TENet-designed repressor variants | Scored low at test loci — defer until published |
-| `Mukund_2023_mmc5.xlsx` | 55 unique non-HiTEff entries | **Ready** — `exclude_labels_from` configured in SCREEN_FILES |
 | `Mukund_2023_mmc4.xlsx` | 8,400 ED pair combinations | Combinatorial data — not integrated |
 
 ### TENet preprint (10.1101/2024.09.21.614253)
