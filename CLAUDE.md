@@ -68,26 +68,17 @@ are tracked in `literature/papers.yaml`.
 
 ## Pending work
 
-### Papers awaiting human review (from 2026-05 search cycle)
-
-| DOI | Title | Why interesting |
-|---|---|---|
-| 10.1038/s41587-022-01624-4 | Universal DL model for ZF design (Ichikawa 2023, NatBiotech) | 49B ZF-DNA interactions; designed ZF sequences |
-| 10.1016/j.cels.2023.07.001 | Combinations of activators + repressors (Mukund 2023, Cell Systems) | mmc4-2 + mmc5 in data/manual; individual domain baselines |
-| 10.1016/j.cels.2023.05.008 | **Already integrated** (Ludwig 2023 viral EDs) | — |
-| 10.15252/embj.2022111179 | KRAB-KAP1 structure + mapping (Stoll 2022, EMBO J) | Structural data, mutation-function table for ZNF93 KRAB |
-| 10.1016/j.molcel.2023.02.011 | Massively parallel CRISPRa in iPSC (Wu 2023, Mol Cell) | Tests existing effectors; no new domain characterization |
-| 10.1016/j.gene.2017.10.058 | CHD8short truncated remodeler (Kunkel 2018, Gene) | **Zebrafish** — likely reject |
-| 10.3791/64403 | In vitro selection of engineered repressors (JoVE 2023) | Protocol paper — likely reject |
-| 10.1016/j.jbc.2021.100947 | ZBTB2 recruits chromatin remodelers (Olivieri 2021, JBC) | Mechanistic — likely reject |
+### 2026-05 literature cycle — complete
+All 17 candidates reviewed. One paper accepted for integration:
+- **Mukund 2023** (10.1016/j.cels.2023.07.001): 55 unique ED entries not in HiTEff — pipeline configured, run `02_seed_ed.py` to ingest.
 
 ### Data not yet integrated (files in data/manual/)
 
 | File | Content | Notes |
 |---|---|---|
 | `TENet_2024_media-5.xlsx` | 220 TENet-designed repressor variants | Scored low at test loci — defer until published |
-| `Mukund_2023_mmc5.xlsx` | 4,168 Pfam nuclear domain screen | Overlaps HiTEff heavily; check for unique domains |
-| `Mukund_2023_mmc4.xlsx` | 8,400 ED pair combinations | Combinatorial data, not individual domain characterization |
+| `Mukund_2023_mmc5.xlsx` | 55 unique non-HiTEff entries | **Ready** — `exclude_labels_from` configured in SCREEN_FILES |
+| `Mukund_2023_mmc4.xlsx` | 8,400 ED pair combinations | Combinatorial data — not integrated |
 
 ### TENet preprint (10.1101/2024.09.21.614253)
 - Currently integrated as `status: integrated` with 51 WT RD sequences

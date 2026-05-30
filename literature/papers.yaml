@@ -181,6 +181,54 @@ papers:
     status: rejected
     notes: "One-page conference oral presentation abstract by Gersbach reviewing the group's work on ZF/TALE/CRISPR for genome and epigenome editing. No primary data, no new domain sequences."
 
+  - doi: "10.1038/sj.gt.3302985"
+    title: "Regulation of endogenous gene expression using small molecule-controlled engineered zinc-finger protein transcription factors"
+    year: 2007
+    journal: "Gene Therapy"
+    categories: [ED]
+    status: rejected
+    notes: "Unavailable. 2007 study on chemically inducible ZFP-TFs — engineered DBD control, not effector domain characterization."
+
+  - doi: "no-doi-gourlay-2014-phd"
+    title: "Strategies for human genome modification using engineered nucleases and transcription factors"
+    year: 2014
+    journal: "PhD thesis, University of Glasgow"
+    categories: [ED]
+    status: rejected
+    notes: "PhD thesis (Gourlay 2014). TALE repressors and TALEN nucleases targeting VEZF1 promoter. Single-gene study using known EDs (KRAB). No new domain catalog."
+
+  - doi: "10.15252/embj.2022111179"
+    title: "Structure and functional mapping of the KRAB-KAP1 repressor complex"
+    year: 2022
+    journal: "The EMBO Journal"
+    categories: [ED]
+    status: rejected
+    notes: "Crystal structure of ZNF93 KRAB-A domain bound to KAP1/TRIM28 RBCC. Complete mutational scan identifies 12 critical residues. Structural/mechanistic study — no new domain sequences. ZNF93 KRAB already represented in library via KRAB-ZFP collection."
+
+  - doi: "10.1016/j.molcel.2023.02.011"
+    title: "Massively parallel characterization of CRISPR activator efficacy in human induced pluripotent stem cells and neurons"
+    year: 2023
+    journal: "Molecular Cell"
+    categories: [ED]
+    status: rejected
+    notes: "Tests dCas9-VPR and dCas9-p300 across thousands of barcoded reporters in iPSCs/neurons. Insight is about chromatin context (bivalent genes most CRISPRa-sensitive; H3K9me3 least responsive), not new domain characterization. Both effectors already curated."
+
+  - doi: "10.1101/gr.275607.121"
+    title: "Targeted regulation of transcription in primary cells using CRISPRa and CRISPRi"
+    year: 2021
+    journal: "Genome Research"
+    categories: [ED]
+    status: rejected
+    notes: "Method paper developing RNA/RNP delivery of dCas9-VPR and dCas9-KRAB in primary CD34+ HSPCs and T cells. No new effector domain characterization; VPR and KRAB already curated."
+
+  - doi: "10.1016/j.jbc.2021.100947"
+    title: "The BTB-domain transcription factor ZBTB2 recruits chromatin remodelers and a histone chaperone during the exit from pluripotency"
+    year: 2021
+    journal: "Journal of Biological Chemistry"
+    categories: [CR]
+    status: rejected
+    notes: "Mechanistic study of ZBTB2 recruiting NuRD (via GATAD2B) and HIRA complexes during mESC exit from pluripotency. No domain sequences or activity scores for engineering."
+
   - doi: "10.1038/s41587-022-01624-4"
     title: "A universal deep-learning model for zinc finger design enables transcription factor reprogramming"
     year: 2023
