@@ -7,6 +7,7 @@ library/module_library.db
 logs/
 __pycache__/
 *.pyc
+*.egg-info/
 .env
 .claude/
 # Prevent accidentally committing files that belong in subdirectories
