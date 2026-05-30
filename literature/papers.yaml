@@ -117,6 +117,22 @@ papers:
     status: integrated
     module_source: "TENet_2024_media-6.xlsx / RD-DMS sheet, 51 unique WT repressor domains (deduplicated)"
 
+  - doi: "10.1038/s41587-022-01624-4"
+    title: "A universal deep-learning model for zinc finger design enables transcription factor reprogramming"
+    year: 2023
+    journal: "Nature Biotechnology"
+    categories: [DBD]
+    status: rejected
+    notes: "Computational tool paper (ZFDesign model trained on 49B ZF-DNA interactions). No systematic catalog of ZF modules — the model generates custom ZF arrays on demand for any target. MOESM4 contains ChIP-seq motifs and figure source data only. Proof-of-concept arrays (CDKN1C, DPH1) are locus-specific, not reusable modules. KRAB domains validated (ZIM3, ZNF10, ZNF264, ZNF324) are already in the library. Note: ZFDesign (zfdesign.org) is a useful tool for generating custom ZF DBDs."
+
+  - doi: "10.3791/64403"
+    title: "In Vitro Selection of Engineered Transcriptional Repressors for Targeted Epigenetic Silencing"
+    year: 2023
+    journal: "Journal of Visualized Experiments (JoVE)"
+    categories: [ED]
+    status: rejected
+    notes: "Protocol paper describing a workflow for deploying KRAB+DNMT3A+DNMT3L ETRs via dCas9. No new domain sequences or activity scores. The three EDs used (ZNF10 KRAB, DNMT3A catalytic, DNMT3L) are canonical domains already curated in the library."
+
   # ── Papers pending human review ───────────────────────────────────────────────
 
   - doi: "10.1016/j.cels.2023.07.001"
@@ -124,8 +140,17 @@ papers:
     year: 2023
     journal: "Cell Systems"
     categories: [ED]
-    status: pending
-    notes: "Mukund et al. 8,400 ED pairs screened. Individual domain activities available in mmc4-2 (baselines) and mmc5 (full domain data). Largely overlaps HiTEff. Review if unique domains are present."
+    status: accepted
+    notes: "mmc5: 4,168 short nuclear domains; 4,113/4,168 overlap HiTEff by exact label match. Pipeline configured to exclude HiTEff labels — only the 55 unique entries will be loaded (Mukund_2023_activators + Mukund_2023_repressors in SCREEN_FILES). mmc4 (combinatorial pairs) not integrated."
+    module_source: "Mukund_2023_mmc5.xlsx / Sheet1 (55 non-HiTEff entries)"
+
+  - doi: "10.1016/j.gene.2017.10.058"
+    title: "CHD8short, a naturally-occurring truncated form of a chromatin remodeler lacking the helicase domain, is a potent transcriptional coregulator"
+    year: 2018
+    journal: "Gene"
+    categories: [CR]
+    status: rejected
+    notes: "Zebrafish study — not human or mouse"
 
   # ── Auto-rejected 2026-05-30 ─────────────────────────────────────────────────
 

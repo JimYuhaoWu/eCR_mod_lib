@@ -476,6 +476,58 @@ SCREEN_FILES = {
         ),
     },
 
+    # ── Mukund 2023 Cell Systems — Pfam nuclear domain screen ────────────────────
+    # mmc5 contains 4,168 short nuclear domains; 4,113 are identical labels to
+    # HiTEff (same assay platform, same oligo library). Only the 55 unique entries
+    # are loaded by excluding any label present in the HiTEff reference sheets.
+    # Two entries: one for activator scores (Avg Act), one for repressor (Avg ReprD13).
+    "Mukund_2023_activators": {
+        "path": MANUAL_DIR / "Mukund_2023_mmc5.xlsx",
+        "doi": "10.1016/j.cels.2023.07.001",
+        "sheet": "Sheet1",
+        "col_name": None,
+        "col_gene": "Gene entry name",
+        "col_fragment": "Domain ID",
+        "col_label": "label",
+        "col_sequence": "Domain sequence",
+        "col_score": "Avg Act",
+        "col_hit": None,
+        "row_prefilter": {"col": "Category", "value": "Short nuclear domain"},
+        "subtype_override": "activator",
+        "validation_level_override": "screen-validated",
+        "exclude_labels_from": [
+            {"path": MANUAL_DIR / "HiTEff_SupTable.xlsx", "sheet": "NucAct_data",  "col": "label"},
+            {"path": MANUAL_DIR / "HiTEff_SupTable.xlsx", "sheet": "NucRepr_data", "col": "label"},
+        ],
+        "notes": (
+            "Download mmc5.xlsx from https://doi.org/10.1016/j.cels.2023.07.001 "
+            "and save as data/manual/Mukund_2023_mmc5.xlsx"
+        ),
+    },
+    "Mukund_2023_repressors": {
+        "path": MANUAL_DIR / "Mukund_2023_mmc5.xlsx",
+        "doi": "10.1016/j.cels.2023.07.001",
+        "sheet": "Sheet1",
+        "col_name": None,
+        "col_gene": "Gene entry name",
+        "col_fragment": "Domain ID",
+        "col_label": "label",
+        "col_sequence": "Domain sequence",
+        "col_score": "Avg ReprD13",
+        "col_hit": None,
+        "row_prefilter": {"col": "Category", "value": "Short nuclear domain"},
+        "subtype_override": "repressor",
+        "validation_level_override": "screen-validated",
+        "exclude_labels_from": [
+            {"path": MANUAL_DIR / "HiTEff_SupTable.xlsx", "sheet": "NucAct_data",  "col": "label"},
+            {"path": MANUAL_DIR / "HiTEff_SupTable.xlsx", "sheet": "NucRepr_data", "col": "label"},
+        ],
+        "notes": (
+            "Download mmc5.xlsx from https://doi.org/10.1016/j.cels.2023.07.001 "
+            "and save as data/manual/Mukund_2023_mmc5.xlsx"
+        ),
+    },
+
     # ── Kristof 2025 Genome Biology — engineered CRISPRi repressors ──────────────
     # ST1 lists repressor domain constructs with AA sequences used in the paper.
     # Treated as ChIP-validated (experimentally characterised, not a pooled screen).
@@ -530,6 +582,21 @@ def process_screen_data(log) -> list[dict]:
         except Exception as e:
             log.error(f"[{screen_name}] parse error: {e}")
             continue
+
+        # Exclude rows whose label already appears in reference file(s)
+        exclude_cfg = info.get("exclude_labels_from")
+        col_label = info.get("col_label")
+        if exclude_cfg and col_label and col_label in df.columns:
+            excluded_labels: set = set()
+            for exc in exclude_cfg:
+                try:
+                    edf = pd.read_excel(exc["path"], sheet_name=exc.get("sheet"))
+                    excluded_labels |= set(edf[exc["col"]].dropna())
+                except Exception as e:
+                    log.warning(f"[{screen_name}] exclude_labels_from load failed: {e}")
+            before = len(df)
+            df = df[~df[col_label].isin(excluded_labels)]
+            log.info(f"[{screen_name}] excluded {before - len(df)} duplicate labels, {len(df)} unique remain")
 
         # Optional merge with a second file (e.g. to add UniProt IDs)
         merge_file = info.get("merge_file")
