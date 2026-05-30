@@ -141,6 +141,46 @@ papers:
     status: rejected
     notes: "Review/methods paper describing TALE and CRISPR/Cas9 synthetic TF platforms. No primary domain sequences or activity data."
 
+  - doi: "10.1093/jimmun/vkaf283.2500"
+    title: "Multi-gene targeting by CRISPRa and CRISPRi in primary human T cells using synthetic gRNAs"
+    year: 2025
+    journal: "The Journal of Immunology (meeting abstract)"
+    categories: [ED]
+    status: rejected
+    notes: "Conference abstract only (J Immunol supplement). Uses dCas9-VPR and dCas9-SALL1-SDS3 as tools to regulate CD28, IL2RB, GATA3, LAT in T cells. No new effector domain characterization."
+
+  - doi: "10.1038/nmeth.2361"
+    title: "Synergistic and tunable human gene activation by combinations of synthetic transcription factors"
+    year: 2013
+    journal: "Nature Methods"
+    categories: [ED]
+    status: rejected
+    notes: "TALE-TFs using VP64 for combinatorial activation of IL1RN, KLK3, CEACAM5, ERBB2. Demonstrates synergy between multiple TALE-TFs. VP64 is the only ED used and is already curated in the library. No new domain sequences or multi-ED screen."
+
+  - doi: "10.1101/186056"
+    title: "Activation of tumor suppressor genes in breast cancer cells by a synthetic chromatin effector"
+    year: 2017
+    journal: "bioRxiv (preprint)"
+    categories: [ED]
+    status: rejected
+    notes: "Published as 10.1186/s12918-018-0608-4 (BMC Systems Biology 2018), retitled 'The synthetic histone-binding regulator protein PcTF activates interferon genes in breast cancer cells'. PcTF = CBX8 chromodomain (H3K27me3 reader) fused to VP64 activator. Application paper in breast cancer; VP64 already curated. No new domain catalog."
+
+  - doi: "10.1016/j.bbagrm.2019.04.002"
+    title: "Tailoring the CRISPR system to transactivate coagulation gene promoters in normal and mutated contexts"
+    year: 2019
+    journal: "BBA - Gene Regulatory Mechanisms"
+    categories: [ED]
+    status: rejected
+    notes: "dCas9-VPR used to activate F7 and F8 coagulation gene promoters as a potential hemophilia therapy. Application paper; VPR already well-characterized and not newly characterized here. No new domain sequences."
+
+  - doi: "10.1186/1744-8069-10-s1-o4"
+    title: "Targeted genome and epigenome editing using engineered TALE and CRISPR/Cas9 technologies"
+    year: 2014
+    journal: "Molecular Pain (conference abstract)"
+    categories: [ED]
+    status: rejected
+    notes: "One-page conference oral presentation abstract by Gersbach reviewing the group's work on ZF/TALE/CRISPR for genome and epigenome editing. No primary data, no new domain sequences."
+
   - doi: "10.1038/s41587-022-01624-4"
     title: "A universal deep-learning model for zinc finger design enables transcription factor reprogramming"
     year: 2023
