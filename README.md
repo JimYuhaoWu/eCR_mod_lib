@@ -9,6 +9,32 @@ from scratch at any future point.
 
 ---
 
+## Quick start (no pipeline required)
+
+A pre-built snapshot (`library/module_library.tsv`, ~10,800 records) is included
+in the repository. Install the package once and query it immediately:
+
+```bash
+git clone https://github.com/JimYuhaoWu/eCR_mod_lib.git
+cd eCR_mod_lib
+pip install -e .
+```
+
+```python
+from scripts import load
+
+df = load()                                        # all ~10,800 records
+eds = load(type="ED")                              # effector domains only
+human_dbds = load(type="DBD", organism="Homo sapiens")
+repressors = load(type="ED").query("subtype == 'repressor'")
+```
+
+The `load()` function reads the committed TSV directly — no database build needed.
+See [Running the pipeline](#running-the-pipeline) only if you want to rebuild from
+raw sources or integrate new data.
+
+---
+
 ## Current library size
 
 **~10,800 records** — last updated 2026-05-30 · full rebuild pending on server
@@ -103,18 +129,21 @@ Requires Python 3.8+.
 
 ### Using as a Python package
 
-The library is installable as `ecr_mod_lib`, which exposes the `scripts/` package for programmatic access:
+The library is installable as `ecr_mod_lib`:
 
 ```bash
 pip install -e /path/to/eCR_mod_lib
 ```
 
 ```python
-from scripts.schema import ModuleLibrary
+from scripts import load
 
-with ModuleLibrary("library/module_library.db") as lib:
-    df = lib.to_dataframe("DBD")
+df = load()                   # returns a pandas DataFrame
+dbds = load(type="DBD")
 ```
+
+For lower-level access (upserts, provenance writes), use `scripts.schema.ModuleLibrary`
+with a built SQLite database.
 
 ---
 
@@ -252,22 +281,29 @@ See [`literature/search_queries.yaml`](literature/search_queries.yaml) to tune s
 ## Querying the library
 
 ```python
-import sys
-sys.path.insert(0, "scripts")
-from schema import ModuleLibrary
+from scripts import load
 
-with ModuleLibrary("library/module_library.db") as lib:
-    # All activator EDs
-    df = lib.to_dataframe("ED")
-    activators = df[df["subtype"] == "activator"]
+# All records
+df = load()
 
-    # Screen-validated DBDs for Homo sapiens
-    dbds = lib.to_dataframe("DBD")
-    validated = dbds[dbds["validation_level"] == "screen-validated"]
+# Filter by type
+eds = load(type="ED")
+dbds = load(type="DBD")
+crs  = load(type="CR")
 
-    # Summary counts
-    print(lib.counts())
+# Filter by type + organism
+human_dbds = load(type="DBD", organism="Homo sapiens")
+
+# Further filtering with pandas
+activators = load(type="ED").query("subtype == 'activator'")
+screen_validated = load(type="DBD").query("validation_level == 'screen-validated'")
+
+# Summary counts
+print(df.groupby(["type", "validation_level"]).size())
 ```
+
+If you need programmatic write access (e.g. to insert new records), use
+`ModuleLibrary` from `scripts.schema` directly with a built SQLite database.
 
 ---
 

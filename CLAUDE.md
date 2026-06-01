@@ -16,19 +16,38 @@ MEF→iPSC reprogramming research. GitHub: https://github.com/JimYuhaoWu/eCR_mod
 
 ## Package installation
 
-This repo is installable as the `ecr_mod_lib` Python package (exposes `scripts/` as a package):
+This repo is installable as the `ecr_mod_lib` Python package:
 
 ```bash
-pip install -e /path/to/module_library
+pip install -e /path/to/eCR_mod_lib
 ```
 
-Then import with:
+### Public API — `load()` (zero-setup)
+
+```python
+from scripts import load
+
+df = load()                                   # all records from library/module_library.tsv
+eds = load(type="ED")                         # 'DBD', 'ED', or 'CR'
+human_dbds = load(type="DBD", organism="Homo sapiens")
+```
+
+`load()` reads the committed TSV snapshot — no pipeline run needed. Implemented in
+`scripts/__init__.py`. Raises `FileNotFoundError` with pipeline instructions if the
+TSV is missing.
+
+### Lower-level API — `ModuleLibrary` (pipeline use)
 
 ```python
 from scripts.schema import ModuleLibrary
+
+with ModuleLibrary("library/module_library.db") as lib:
+    lib.insert_or_replace(records)
+    df = lib.to_dataframe("DBD")
 ```
 
-Used as a dependency by **[eCR_predictor](https://github.com/JimYuhaoWu/eCR_predictor)** — a tool that queries the library to predict DBD binding candidates for a given DNA sequence.
+Used internally by the pipeline scripts and as a dependency by
+**[eCR_predictor](https://github.com/JimYuhaoWu/eCR_predictor)**.
 
 ## Running the pipeline (Linux server)
 
