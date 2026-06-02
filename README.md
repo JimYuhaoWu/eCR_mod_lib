@@ -17,6 +17,8 @@ in the repository. Install the package once and query it immediately:
 ```bash
 git clone https://github.com/JimYuhaoWu/eCR_mod_lib.git
 cd eCR_mod_lib
+conda env create -f environment.yml   # skip if ecr env already exists
+conda activate ecr
 pip install -e .
 ```
 
@@ -108,7 +110,7 @@ module_library/
 ├── logs/                          # timestamped run logs (git-ignored)
 ├── pyproject.toml                 # package metadata (installs as ecr_mod_lib)
 ├── requirements.txt               # pip dependencies
-├── env.yml                        # conda environment
+├── environment.yml                # shared conda environment (ecr)
 └── README.md
 ```
 
@@ -117,15 +119,19 @@ module_library/
 ## Setup
 
 ```bash
-# Clone and enter project root
 git clone https://github.com/JimYuhaoWu/eCR_mod_lib.git
 cd eCR_mod_lib
 
-# Install dependencies (pip)
-pip install -r requirements.txt
+# Create and activate the shared conda environment
+conda env create -f environment.yml
+conda activate ecr
+
+# Install this package in editable mode
+pip install -e .
 ```
 
-Requires Python 3.8+.
+The `ecr` environment covers both `eCR_mod_lib` and `eCR_predictor` — create it once in either repo.
+Requires Python 3.10 (set in `environment.yml`); Python 3.8+ also works if using pip directly.
 
 ### Using as a Python package
 

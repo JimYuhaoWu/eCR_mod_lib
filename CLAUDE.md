@@ -21,11 +21,13 @@ MEF→iPSC reprogramming research. GitHub: https://github.com/JimYuhaoWu/eCR_mod
 | ED | ~7,700 | 11 sources — see SCREEN_FILES in scripts/02_seed_ed.py |
 | CR | ~540 | EpiFactors v2.0 + curated YAML |
 
-## Package installation
+## Environment & installation
 
-This repo is installable as the `ecr_mod_lib` Python package:
+Shared conda environment (`ecr`) covers both repos:
 
 ```bash
+conda env create -f environment.yml   # once per machine
+conda activate ecr
 pip install -e /path/to/eCR_mod_lib
 ```
 
