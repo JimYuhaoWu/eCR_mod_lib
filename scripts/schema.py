@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS modules (
     uniprot_id              TEXT,
     sequence_aa             TEXT,
     length_aa               INTEGER,
+    zinc_finger_count       INTEGER,
     target_or_mechanism     TEXT,
     quantitative_metric     REAL,
     quantitative_metric_label TEXT,

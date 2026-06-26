@@ -17,7 +17,7 @@ MEF→iPSC reprogramming research. GitHub: https://github.com/JimYuhaoWu/eCR_mod
 
 | Type | Count | Key sources |
 |---|---|---|
-| DBD | ~3,250 | AnimalTFDB v4 (human + mouse), UniProt sequences, JASPAR motifs |
+| DBD | ~3,250 | AnimalTFDB v4 (human + mouse), UniProt sequences + zinc-finger counts, JASPAR motifs |
 | ED | ~7,700 | 11 sources — see SCREEN_FILES in scripts/02_seed_ed.py |
 | CR | ~540 | EpiFactors v2.0 + curated YAML |
 
@@ -117,6 +117,13 @@ are tracked in `literature/papers.yaml`.
 ### 2026-05 literature cycle — complete
 All 17 candidates reviewed. One paper integrated:
 - **Mukund 2023** (10.1016/j.cels.2023.07.001): 55 activator + 55 repressor entries (110 total); `exclude_labels_from` filters the 4,113 HiTEff duplicates automatically. ✓ integrated 2026-05-30.
+
+### zinc_finger_count column — needs a rebuild to populate
+`scripts/01_fetch_dbd.py` now fetches a UniProt-annotated zinc-finger count
+(`ZN_FING` features) for C2H2 families (`zf-C2H2`, `ZBTB`) into the new
+`zinc_finger_count` column (added to `schema.py`). The committed TSV/DB predate
+this — run `01_fetch_dbd.py` then `04_build_library.py --rebuild` on the server
+to populate it. Consumed by eCR_predictor to add Zn ions to AF3 inputs.
 
 ### Data not yet integrated (files in data/manual/)
 

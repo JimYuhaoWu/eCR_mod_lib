@@ -166,6 +166,34 @@ def fetch_uniprot_sequence(uniprot_id: str, session: requests.Session,
     return seq or None
 
 
+# C2H2-type zinc-finger families (AnimalTFDB 'Family' values) whose members
+# coordinate one Zn(2+) ion per finger. Only these get a zinc_finger_count.
+ZINC_FINGER_FAMILIES = {"zf-C2H2", "ZBTB"}
+
+
+def fetch_zinc_finger_count(uniprot_id: str, session: requests.Session,
+                            api_base: str) -> int | None:
+    """
+    Count curated zinc-finger features (ZN_FING) for a UniProt accession.
+
+    Each ZN_FING feature is one Zn(2+)-coordinating finger; the count is used
+    downstream to add that many Zn ions to AF3 inputs. Returns the integer
+    count, or None if the entry could not be fetched.
+    """
+    cache = RAW_DIR / "uniprot" / f"{uniprot_id}_znf.tsv"
+    if cache.exists():
+        text = cache.read_text()
+    else:
+        url = f"{api_base}/{uniprot_id}.tsv?fields=ft_zn_fing"
+        resp = _get(url, session, timeout=15)
+        if resp is None:
+            return None
+        text = resp.text
+        cache.write_text(text, encoding="utf-8")
+
+    return text.count("ZN_FING")
+
+
 def lookup_uniprot_by_gene(gene: str, taxon_id: str, session: requests.Session,
                             api_base: str) -> tuple[str | None, str | None]:
     """
@@ -270,6 +298,12 @@ def build_dbd_records(dfs: dict[str, pd.DataFrame], cfg: dict,
                 resolved_uid, seq = lookup_uniprot_by_gene(
                     symbol, taxon_id, session, up_cfg["api_base"])
 
+            # Zinc-finger count (only for C2H2-type families; one Zn per finger)
+            zinc_finger_count = None
+            if family in ZINC_FINGER_FAMILIES and resolved_uid and not dry_run:
+                zinc_finger_count = fetch_zinc_finger_count(
+                    resolved_uid, session, up_cfg["api_base"])
+
             # JASPAR motif
             jaspar_id = None
             if not dry_run:
@@ -289,6 +323,7 @@ def build_dbd_records(dfs: dict[str, pd.DataFrame], cfg: dict,
                 "uniprot_id": resolved_uid,
                 "sequence_aa": seq,
                 "length_aa": len(seq) if seq else None,
+                "zinc_finger_count": zinc_finger_count,
                 "target_or_mechanism": f"{family} family TF; see JASPAR {jaspar_id}" if jaspar_id else f"{family} family TF",
                 "validation_level": "motif-only" if jaspar_id else "predicted",
                 "source": f"AnimalTFDB v{cfg['animaltfdb']['version']}",
