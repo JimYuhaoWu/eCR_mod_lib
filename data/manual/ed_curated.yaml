@@ -185,6 +185,33 @@ activators:
       Wang et al. 2017 Stem Cell Res. MBI residues 1-43, MBII 63-143;
       do not use MBI alone — insufficient activation.
 
+  - name: SS18-SNH
+    subtype: activator
+    source_protein: "SS18/SYT (Protein SSXT)"
+    organism: Mus musculus
+    uniprot_id: Q62280
+    domain_residues: "1-70"
+    mechanism: >
+      SS18 N-terminal SNH domain docks the BRG1/SMARCA4 ATPase and integrates
+      into the endogenous mSWI/SNF (BAF) remodeler, recruiting it to the target
+      locus to open chromatin. An opener/remodeler recruiter, not a classical
+      transactivation domain.
+    activity_score: null
+    activity_metric: null
+    activity_source: null
+    validation_level: screen-validated
+    engineering_compatibility: >
+      BAF-recruiter opener for eCR design; C-terminal to DBD with GS linker.
+      Monitor the developability aggregation gate; fall back to alternative BAF
+      recruiters if flagged.
+    known_interactors: "SMARCA4/BRG1, SMARCA2, mSWI/SNF (BAF) complex"
+    linker_notes: "GS-flex C-terminal linker"
+    doi: ""
+    notes: >
+      SS18 N-terminal 70-aa SNH domain (recruits BRG1); boundary per project
+      spec. MEF->mESC engineering round: open pluripotency loci via endogenous
+      BAF. Try first; switch recruiter if aggregation gate fails.
+
 repressors:
 
   - name: KRAB
@@ -258,3 +285,50 @@ repressors:
     linker_notes: "GS3 minimal linker; very short domain"
     doi: "10.1038/ng.543"
     notes: "Lauberth & Bhatt 2010 Nat Genet"
+
+  - name: Mrg15
+    subtype: repressor
+    source_protein: "Mortality factor 4-like protein 1 (MORF4L1/MRG15)"
+    organism: Mus musculus
+    uniprot_id: P60762
+    domain_residues: "1-362"
+    mechanism: >
+      Chromo/Tudor-knot (12-51) engages H3K36me2/3; C-terminal MRG domain
+      (191-362) recruits the mSin3-HDAC repressive complex. Used full-length as
+      an author-validated strong repressing chromatin regulator.
+    activity_score: null
+    activity_metric: null
+    activity_source: null
+    validation_level: screen-validated
+    engineering_compatibility: >
+      Repressor ED for eCR design; C-terminal to DBD with GS linker. Full-length
+      362 aa. MRG domain is bifunctional (Sin3 repressive vs Tip60 activating),
+      so full-length is preferred to reproduce observed net repression.
+    known_interactors: "SIN3A/SIN3B, HDAC1, HDAC2, MRGBP, KAT5/TIP60"
+    linker_notes: "GS-flex C-terminal linker"
+    doi: ""
+    notes: >
+      Prdm6 and Mrg15 shown as strong repressing CRs in unpublished lab work.
+      MEF->mESC engineering round: close fibroblast loci.
+
+  - name: Mrg15-MRG
+    subtype: repressor
+    source_protein: "Mortality factor 4-like protein 1 (MORF4L1/MRG15)"
+    organism: Mus musculus
+    uniprot_id: P60762
+    domain_residues: "191-362"
+    mechanism: >
+      MRG domain only (191-362); recruits mSin3-HDAC via protein-protein
+      interaction, without the chromo/Tudor-knot chromatin-reading module.
+    activity_score: null
+    activity_metric: null
+    activity_source: null
+    validation_level: screen-validated
+    engineering_compatibility: >
+      Compact (172 aa) fallback for Mrg15 if full-length misbehaves; use only if
+      full-length fails.
+    known_interactors: "SIN3A/SIN3B, HDAC1, HDAC2, MRGBP"
+    linker_notes: "GS-flex C-terminal linker"
+    doi: ""
+    notes: >
+      Domain-only fallback entry for Mrg15 (not primary). See Mrg15.
