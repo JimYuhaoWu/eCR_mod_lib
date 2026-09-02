@@ -212,6 +212,45 @@ activators:
       spec. MEF->mESC engineering round: open pluripotency loci via endogenous
       BAF. Try first; switch recruiter if aggregation gate fails.
 
+    species_note: >
+      Mouse ortholog. The human counterpart of this domain is SS18-N70
+      (ED_SS18_N70, UniProt Q15532, residues 1-70) -- same SNH domain,
+      same coordinates. Use SS18-N70 for human transitions and this entry
+      for mouse; they are alternatives, not a pair to combine.
+  - name: SS18-N70
+    subtype: activator
+    source_protein: "Protein SSXT (SS18), BAF/SWI-SNF core subunit"
+    organism: Homo sapiens
+    uniprot_id: Q15532
+    domain_residues: "1-70"
+    mechanism: >
+      N-terminal SNH domain of SS18; binds BRG1/SMARCA4 and thereby recruits
+      the BAF (SWI/SNF) remodelling complex. Acts by ATP-dependent nucleosome
+      remodelling rather than by histone-mark deposition, so it opens chromatin
+      directly instead of via a coactivator cascade.
+    activity_score: null
+    activity_metric: null
+    activity_source: null
+    validation_level: ChIP-validated
+    engineering_compatibility: >
+      The opener half of the SS18-N70 / SALL1-N12 pair: BAF recruitment for
+      opening, NuRD recruitment for closing. Because both act by recruiting a
+      remodelling complex to whatever the DBD binds, an opener and a closer must
+      NEVER share a DBD -- they would compete at every site that DBD occupies,
+      including each other's on-target loci, and the net direction would be set
+      by construct stoichiometry rather than by design.
+    known_interactors: "SMARCA4, SMARCA2, SMARCB1, SMARCC1"
+    linker_notes: "GS6; keep the SNH helix unconstrained"
+    doi: "10.1073/pnas.1802242115"
+    notes: >
+      Added 2026-09-02 for the fib->beta eCR run. SS18 itself was absent from the
+      library; only the SS18L1/SS18L2 paralogs were present.
+
+    species_note: >
+      Human ortholog. The mouse counterpart is SS18-SNH (ED_SS18_SNH,
+      UniProt Q62280, residues 1-70) -- same SNH domain, same coordinates.
+      Use this entry for human transitions and SS18-SNH for mouse; they are
+      alternatives, not a pair to combine.
 repressors:
 
   - name: KRAB
