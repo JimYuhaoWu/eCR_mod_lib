@@ -44,6 +44,20 @@ CREATE TABLE IF NOT EXISTS modules (
     sequence_aa             TEXT,
     length_aa               INTEGER,
     zinc_finger_count       INTEGER,
+    -- DBD extraction (06_extract_dbd.py). `sequence_aa` holds the WHOLE UniProt
+    -- protein for type='DBD' rows, so a fusion built from it is a full-length-TF
+    -- fusion carrying every native domain (KRAB, SCAN, TADs). These columns
+    -- record the DNA-binding span without destroying the original: consumers
+    -- migrate to `dbd_sequence_aa` deliberately rather than by a silent change
+    -- of meaning under `sequence_aa`.
+    sequence_full_aa        TEXT,
+    dbd_start               INTEGER,
+    dbd_end                 INTEGER,
+    dbd_sequence_aa         TEXT,
+    dbd_length_aa           INTEGER,
+    dbd_extraction          TEXT,
+    dbd_excluded_domains    TEXT,
+    dbd_review_flag         INTEGER,
     target_or_mechanism     TEXT,
     quantitative_metric     REAL,
     quantitative_metric_label TEXT,
@@ -86,6 +100,21 @@ CREATE TABLE IF NOT EXISTS provenance (
     notes           TEXT
 );
 """
+
+# Columns added after the table shipped. CREATE TABLE IF NOT EXISTS is a no-op on
+# an existing database, so a new column in the DDL above would never reach one --
+# every deployed library would silently lack it. Each entry is applied only when
+# absent, which makes _create_schema() idempotent and safe to run repeatedly.
+MIGRATIONS = [
+    ("sequence_full_aa",     "TEXT"),
+    ("dbd_start",            "INTEGER"),
+    ("dbd_end",              "INTEGER"),
+    ("dbd_sequence_aa",      "TEXT"),
+    ("dbd_length_aa",        "INTEGER"),
+    ("dbd_extraction",       "TEXT"),
+    ("dbd_excluded_domains", "TEXT"),
+    ("dbd_review_flag",      "INTEGER"),
+]
 
 CREATE_INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_modules_type ON modules(type);",
@@ -138,6 +167,11 @@ class ModuleLibrary:
     def _create_schema(self):
         cur = self.conn.cursor()
         cur.executescript(CREATE_MODULES + CREATE_PROVENANCE)
+        cur.execute("PRAGMA table_info(modules);")
+        have = {row["name"] for row in cur.fetchall()}
+        for col, decl in MIGRATIONS:
+            if col not in have:
+                cur.execute(f"ALTER TABLE modules ADD COLUMN {col} {decl};")
         for idx in CREATE_INDEXES:
             cur.execute(idx)
         self.conn.commit()

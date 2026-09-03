@@ -13,3 +13,12 @@ __pycache__/
 # Prevent accidentally committing files that belong in subdirectories
 /module_library.tsv
 /review_*.md
+
+# UniProt per-accession caches: sequences (*.fasta, already ignored above),
+# zinc-finger tables (*_znf.tsv) and feature tables (*_feat.tsv) written by
+# 01_fetch_dbd.py / 06_extract_dbd.py. ~5,800 files, all re-fetchable from the
+# accession; download_manifest.json carries the provenance that matters.
+data/raw/uniprot/*.tsv
+
+# Timestamped library backups taken before a bulk update.
+library/*.db.bak.*
