@@ -200,13 +200,23 @@ class ModuleLibrary:
             cur.execute("SELECT 1 FROM modules WHERE module_id=?", (rec["module_id"],))
             exists = cur.fetchone() is not None
 
-            # Filter to valid columns; fill missing with None
-            row = {col: rec.get(col) for col in columns}
+            # Only the columns the record actually mentions. Filling every
+            # schema column and INSERT-OR-REPLACEing would NULL any column the
+            # caller does not know about: the dbd_* span columns exist only in
+            # the database (no source TSV carries them), so one ordinary
+            # 04_build_library.py run would silently erase the whole extraction
+            # for all 3,248 DBD rows. An update touches what it was given.
+            row = {col: rec[col] for col in columns if col in rec}
             cols = list(row.keys())
-            placeholders = ", ".join("?" * len(cols))
-            col_str = ", ".join(cols)
-            sql = f"INSERT OR REPLACE INTO modules ({col_str}) VALUES ({placeholders})"
-            cur.execute(sql, list(row.values()))
+            if exists:
+                assignments = ", ".join(f"{c}=?" for c in cols)
+                cur.execute(f"UPDATE modules SET {assignments} WHERE module_id=?",
+                            list(row.values()) + [rec["module_id"]])
+            else:
+                placeholders = ", ".join("?" * len(cols))
+                cur.execute(
+                    f"INSERT INTO modules ({', '.join(cols)}) VALUES ({placeholders})",
+                    list(row.values()))
 
             if exists:
                 updated += 1

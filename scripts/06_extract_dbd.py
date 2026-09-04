@@ -86,6 +86,7 @@ DB_PATH = ROOT / "library" / "module_library.db"
 
 FLANK = 6
 BATCH = 100          # accessions per UniProt search request
+MIN_SPAN_COVERAGE = 0.5   # below this, the span is mostly not DNA-binding feature
 
 # Feature-table keys -> the TSV columns they arrive in.
 FEATURE_COLUMNS = ["Zinc finger", "DNA binding", "Domain [FT]", "Region"]
@@ -114,10 +115,36 @@ KEEP_DOMAIN_EXACT = frozenset({
     "cbf", "runt", "stat", "tbp", "gcm", "arid", "psq", "hth psq-type",
 })
 
+# Not every zinc finger binds DNA. PHD, RING, ZZ, SP-RING, RanBP2 and MYND
+# fingers are protein- or histone-interaction modules, and treating them as part
+# of the array is not a near miss -- NSD2's real DBD is the 69-aa HMG box at
+# 453-521, but its four PHD fingers (667-1286) dragged the span to 447-1292,
+# 846 aa carrying the whole SET methyltransferase. That is precisely the
+# self-antagonism this script exists to remove, reintroduced by the extractor.
+#
+# So ZN_FING features are WHITELISTED by their /note, not taken wholesale.
+# Everything not named here is recorded as an excluded feature instead.
+ZNF_KEEP_TYPES = ("c2h2", "nr c4", "gata", "thap", "bed")
+
 # Domains that must never ride along on a fusion. KRAB/SCAN/BTB recruit their own
 # corepressors; carrying one into an opener is the failure this script exists for.
+#
+# NOTE ON WHAT EXCLUSION CAN AND CANNOT DO: the span is min..max over the KEPT
+# features, so naming a domain here never shortens it. Exclusion drives the
+# `dbd_excluded_domains` record and the review flag -- it is bookkeeping, and
+# the real protection is that an excluded domain is not a keep-feature and so
+# cannot anchor a boundary. KRAB is absent from the spans because it sits
+# N-terminal to the ZnF array, not because this tuple removed it.
 EXCLUDE_DOMAIN_HINTS = ("krab", "scan", "btb", "poz", "bromo", "chromo", "phd",
-                        "set ", "jmjc", "sam ", "wd 1", "ank ", "ring")
+                        "jmjc", "swirm", "elm2", "pwwp", "myb-binding")
+
+# Short excluded names, matched against the WHOLE description like the keep side:
+# 'set' is inside 'Basic motif'-free text but 'ank' is inside 'flanking', and an
+# exclusion that fires by accident silently discards a real DNA-binding domain.
+EXCLUDE_DOMAIN_EXACT = frozenset({
+    "set", "pre-set", "post-set", "sam", "ank", "wd", "ring", "zz", "ddt",
+    "bah", "lim", "sh2", "pnt", "orange", "nr lbd", "pas", "pac", "mh2",
+})
 
 # Regions with an effector function of their own. Excluded always (they are
 # Regions, never kept), but flagged for review when they fall inside the kept
@@ -145,6 +172,7 @@ def fetch_features(accessions: list[str], session: requests.Session,
     A batch is ~1 request per 100 entries, so the whole library is ~30 requests
     -- the network cost that deferred this work does not really exist.
     """
+    (RAW_DIR / "uniprot").mkdir(parents=True, exist_ok=True)
     out: dict[str, str] = {}
     todo = []
     for acc in accessions:
@@ -166,8 +194,16 @@ def fetch_features(accessions: list[str], session: requests.Session,
             resp = session.get(url, timeout=60)
             resp.raise_for_status()
         except requests.RequestException as exc:
-            log.warning(f"[features] batch {i // BATCH}: {exc}")
-            continue
+            # Do NOT continue. main() cannot tell "fetch failed" from "entry has
+            # no features", so skipping a batch writes dbd_extraction='none' for
+            # up to 100 accessions -- erasing a good prior extraction on one
+            # transient HTTP error. Fail loudly and let the run be repeated;
+            # everything already fetched is cached, so a retry is cheap.
+            raise RuntimeError(
+                f"UniProt feature fetch failed for batch {i // BATCH + 1} "
+                f"({len(chunk)} accessions): {exc}. Nothing was written; re-run "
+                f"to resume from the cache."
+            ) from exc
 
         lines = resp.text.splitlines()
         got = set()
@@ -203,17 +239,35 @@ def parse_features(line: str) -> dict[str, list[tuple[int, int, str]]]:
 _TRAILING_INDEX = re.compile(r"\s+\d+$")
 
 
+def _family(row) -> str:
+    """`row["subtype"] or "?"` never falls back: a pandas NULL is float('nan'),
+    which is truthy, so the family tally logged a literal 'nan' key."""
+    v = row.get("subtype")
+    return str(v) if v is not None and str(v).lower() != "nan" and str(v) else "?"
+
+
+def _merge(spans: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    """Merge overlapping/adjacent (start, end) intervals, so coverage counts each
+    residue once -- ZnF arrays and DNA_BIND features routinely overlap."""
+    out: list[tuple[int, int]] = []
+    for s, e in sorted(spans):
+        if out and s <= out[-1][1] + 1:
+            out[-1] = (out[-1][0], max(out[-1][1], e))
+        else:
+            out.append((s, e))
+    return out
+
+
 def classify_domain(note: str) -> str:
     """'keep' | 'exclude' | 'other' for a DOMAIN description.
 
     Exclusion wins over keeping: a description that reads as both should not be
     carried into a fusion on the strength of the weaker signal."""
     low = note.lower().strip()
-    if any(h in low for h in EXCLUDE_DOMAIN_HINTS):
+    bare = _TRAILING_INDEX.sub("", low)
+    if any(h in low for h in EXCLUDE_DOMAIN_HINTS) or bare in EXCLUDE_DOMAIN_EXACT:
         return "exclude"
-    if any(h in low for h in KEEP_DOMAIN_HINTS):
-        return "keep"
-    if _TRAILING_INDEX.sub("", low) in KEEP_DOMAIN_EXACT:
+    if any(h in low for h in KEEP_DOMAIN_HINTS) or bare in KEEP_DOMAIN_EXACT:
         return "keep"
     return "other"
 
@@ -223,12 +277,16 @@ def extract_one(seq: str, feats: dict) -> dict:
     Compute the DNA-binding span for one record. Returns a dict of the DBD
     columns; `dbd_extraction='none'` when no keep-feature was found.
     """
-    zn = [(s, e) for s, e, _ in feats.get("ZN_FING", [])]
+    zn, dropped = [], []
+    for s, e, note in feats.get("ZN_FING", []):
+        if any(t in note.lower() for t in ZNF_KEEP_TYPES):
+            zn.append((s, e))
+        else:
+            dropped.append((f"ZnF:{note or '?'}", s, e))
     dna = [(s, e) for s, e, _ in feats.get("DNA_BIND", [])]
-    keep_dom, dropped = [], []
+    keep_dom = []
     for s, e, note in feats.get("DOMAIN", []):
-        verdict = classify_domain(note)
-        if verdict == "keep":
+        if classify_domain(note) == "keep":
             keep_dom.append((s, e))
         else:
             dropped.append((note or "?", s, e))
@@ -240,16 +298,51 @@ def extract_one(seq: str, feats: dict) -> dict:
                 "dbd_excluded_domains": None, "dbd_review_flag": 0,
                 "n_znf": len(zn)}
 
-    lo = max(1, min(s for s, _ in spans) - FLANK)
-    hi = min(len(seq), max(e for _, e in spans) + FLANK)
-    sub = seq[lo - 1:hi]
+    first, last = min(s for s, _ in spans), max(e for _, e in spans)
+    lo = max(1, min(first - FLANK, len(seq)))
+    hi = min(len(seq), last + FLANK)
 
-    # Rule 2: a dropped domain inside the kept span is carried along anyway.
-    inside = [n for n, s, e in dropped if s >= lo and e <= hi]
+    # The flank must not reach into an excluded domain. ZKSCAN8's first C2H2
+    # finger starts at 322 and its KRAB ends at 316, so a 6-residue flank put
+    # one KRAB residue in the construct -- 26 records did this. Pull the
+    # boundary back to the excluded domain's edge; the span stays contiguous
+    # and only the flank is shortened. A domain that is genuinely INSIDE the
+    # kept region is untouched here and still raises the review flag below.
+    for _n, s, e in dropped:
+        if e < first and e >= lo:
+            lo = e + 1
+        if s > last and s <= hi:
+            hi = s - 1
+    sub = seq[lo - 1:hi] if hi >= lo else ""
+    if not sub:
+        # Feature coordinates past the end of the stored sequence -- an isoform
+        # mismatch between the FASTA and the feature table. Rule 3: report it,
+        # do not emit a zero-length "extraction".
+        return {"dbd_extraction": "none", "dbd_start": None, "dbd_end": None,
+                "dbd_sequence_aa": None, "dbd_length_aa": None,
+                "dbd_excluded_domains": None, "dbd_review_flag": 1,
+                "n_znf": len(zn), "_inside": ["coordinates past sequence end"]}
+
+    # Rule 2: a dropped feature the span carries is a conflict. The test is
+    # OVERLAP, not containment: a domain straddling a boundary is still partly
+    # in the construct, and containment let TADA2A carry SWIRM unflagged.
+    def _overlaps(s, e):
+        return s <= hi and e >= lo
+
+    inside = [n for n, s, e in dropped if _overlaps(s, e)]
     for s, e, note in feats.get("REGION", []):
         low = (note or "").lower()
-        if any(h in low for h in HAZARD_REGION_HINTS) and s >= lo and e <= hi:
+        if any(h in low for h in HAZARD_REGION_HINTS) and _overlaps(s, e):
             inside.append(note)
+
+    # A span that is mostly NOT DNA-binding feature is a boundary failure even
+    # when nothing named lands inside it: MGA extracts 78-2480 (2,403 aa of a
+    # 3,065-aa protein) because two distant keep-features bracket the whole
+    # middle. Gate 1 only catches spans that are too SHORT.
+    covered = sum(e - s + 1 for s, e in _merge(spans))
+    coverage = covered / len(sub)
+    if coverage < MIN_SPAN_COVERAGE:
+        inside.append(f"span {coverage:.0%} DNA-binding feature")
 
     if zn and (dna or keep_dom):
         kind = "bipartite"
@@ -290,7 +383,7 @@ def survey(rows, features, log) -> None:
 
     for r in rows:
         acc = r["uniprot_id"]
-        fam = r["subtype"] or "?"
+        fam = _family(r)
         families_total[fam] += 1
         feats = parse_features(features.get(acc, ""))
         for _, _, note in feats.get("DOMAIN", []):
@@ -341,16 +434,35 @@ def validate(lib, log) -> int:
     # 28 aa/finger is the expected pitch; allow generous slack for degenerate
     # fingers and split arrays, and only flag spans that are too SHORT to hold
     # the fingers claimed (too long is legitimate -- split arrays span a gap).
-    znf = done[done["zinc_finger_count"].notna() & (done["zinc_finger_count"] > 0)
-               & (done["dbd_extraction"].isin(["znf_array", "bipartite"]))]
-    short = znf[znf["dbd_length_aa"] < 20 * znf["zinc_finger_count"]]
+    #
+    # The reference is the number of fingers the span actually KEPT, re-derived
+    # from the cached feature table rather than read back from the extraction --
+    # `zinc_finger_count` counts every ZN_FING feature, PHD and RING included,
+    # so it is an upper bound and comparing against it fails records whose
+    # non-DNA-binding fingers were (correctly) left out.
+    znf = done[done["dbd_extraction"].isin(["znf_array", "bipartite"])
+               & done["uniprot_id"].notna()]
+    short, overcount = [], []
+    for _, r in znf.iterrows():
+        p = _cache_path(str(r["uniprot_id"]).strip())
+        if not p.exists():
+            continue
+        notes = parse_features(p.read_text(encoding="utf-8")).get("ZN_FING", [])
+        kept = sum(1 for _, _, n in notes
+                   if any(t in n.lower() for t in ZNF_KEEP_TYPES))
+        if kept and r["dbd_length_aa"] < 20 * kept:
+            short.append((r["gene_symbol"], r["dbd_length_aa"], kept))
+        if r["zinc_finger_count"] and r["zinc_finger_count"] > len(notes):
+            overcount.append(r["gene_symbol"])
     log.info(f"[gate 1/length] {len(znf):,} ZnF records checked, "
-             f"{len(short):,} shorter than 20 aa/finger")
-    if len(short):
+             f"{len(short):,} shorter than 20 aa per KEPT finger")
+    if short:
         fails += 1
-        for _, r in short.head(10).iterrows():
-            log.warning(f"    {r['gene_symbol']}: {r['dbd_length_aa']} aa for "
-                        f"{int(r['zinc_finger_count'])} fingers")
+        for gene, length, kept in short[:10]:
+            log.warning(f"    {gene}: {length} aa for {kept} kept fingers")
+    if overcount:
+        log.warning(f"[gate 1/length] {len(overcount)} records where "
+                    f"zinc_finger_count exceeds the annotated ZN_FING features")
 
     # Gate 2 -- known anchors.
     bad = []
@@ -371,15 +483,48 @@ def validate(lib, log) -> int:
 
     # Gate 3 -- KRAB audit. This is the specific failure that motivated the work,
     # so it gets its own gate rather than being assumed away by gate 2.
-    krab = done[done["dbd_excluded_domains"].fillna("").str.lower().str.contains(KRAB_HINT)]
-    carried = krab[krab["dbd_review_flag"] == 1]
+    #
+    # The KRAB span is re-read from the feature table and intersected with the
+    # kept span, rather than trusting dbd_review_flag -- the flag is set by any
+    # of several conditions, so testing it here would pass or fail for reasons
+    # that have nothing to do with KRAB.
+    #
+    # Two outcomes are distinguished. A KRAB the span reaches into on its own is
+    # a boundary BUG and fails the gate. A KRAB whose UniProt annotation
+    # OVERLAPS the first kept finger is an annotation conflict with no correct
+    # trim: pulling the boundary back would cut into the finger. Those are
+    # reported, not failed, because the honest response is to exclude the
+    # chassis at design time, which dbd_review_flag already asks for.
+    krab = done[done["dbd_excluded_domains"].fillna("").str.lower().str.contains(KRAB_HINT)
+                & done["uniprot_id"].notna()]
+    bugs, conflicts = [], []
+    for _, r in krab.iterrows():
+        p = _cache_path(str(r["uniprot_id"]).strip())
+        if not p.exists():
+            continue
+        feats = parse_features(p.read_text(encoding="utf-8"))
+        keeps = [(s, e) for s, e, n in feats.get("ZN_FING", [])
+                 if any(t in n.lower() for t in ZNF_KEEP_TYPES)]
+        keeps += [(s, e) for s, e, _ in feats.get("DNA_BIND", [])]
+        first_keep = min((s for s, _ in keeps), default=None)
+        for s, e, n in feats.get("DOMAIN", []):
+            if KRAB_HINT not in n.lower():
+                continue
+            if s <= r["dbd_end"] and e >= r["dbd_start"]:
+                entry = (r["gene_symbol"], f"{int(r['dbd_start'])}-{int(r['dbd_end'])}",
+                         f"KRAB {s}-{e}")
+                (conflicts if first_keep is not None and e >= first_keep
+                 else bugs).append(entry)
     log.info(f"[gate 3/KRAB] {len(krab):,} records dropped a KRAB domain; "
-             f"{len(carried):,} still have one inside the kept span")
-    if len(carried):
+             f"{len(bugs)} span reaches into one, {len(conflicts)} annotation "
+             f"overlaps a kept finger")
+    if bugs:
         fails += 1
-        for _, r in carried.head(10).iterrows():
-            log.warning(f"    {r['gene_symbol']} ({r['uniprot_id']}): "
-                        f"{r['dbd_start']}-{r['dbd_end']}")
+        for gene, span, krab_span in bugs[:10]:
+            log.warning(f"    BUG {gene}: span {span} vs {krab_span}")
+    for gene, span, krab_span in conflicts[:10]:
+        log.info(f"    conflict {gene}: span {span} vs {krab_span} "
+                 f"(flagged for review; no correct trim exists)")
 
     log.info(f"[validate] {fails} gate(s) failed")
     return fails
@@ -444,7 +589,7 @@ def main() -> None:
             res = extract_one(seq, parse_features(line))
 
         kinds[res["dbd_extraction"]] += 1
-        by_family[r["subtype"] or "?"][res["dbd_extraction"]] += 1
+        by_family[_family(r)][res["dbd_extraction"]] += 1
 
         updates.append((
             seq, res["dbd_start"], res["dbd_end"], res["dbd_sequence_aa"],

@@ -177,67 +177,115 @@ the constraint.
 
 ### Coverage
 
-2,818 of 3,248 DBD rows are extractable; **2,622 (93%) got a span**.
+2,818 of 3,248 DBD rows are extractable; **2,556 (91%) got a span**.
 
 | `dbd_extraction` | n | meaning |
 |---|---|---|
-| `znf_array` | 1,121 | contiguous first-finger → last-finger block |
-| `dna_bind` | 787 | a `DNA_BIND` feature |
-| `domain` | 440 | a DNA-binding `DOMAIN` (bHLH, bZIP, MBD, …) with no `DNA_BIND` |
-| `bipartite` | 274 | binding feature + partner domain (e.g. HNF1A POU + homeobox) |
-| `none` | 196 | no usable feature — full-length record left honest, per rule 3 |
+| `znf_array` | 1,055 | contiguous first-finger → last-finger block |
+| `dna_bind` | 793 | a `DNA_BIND` feature |
+| `domain` | 463 | a DNA-binding `DOMAIN` (bHLH, bZIP, MBD, …) with no `DNA_BIND` |
+| `bipartite` | 245 | binding feature + partner domain (e.g. HNF1A POU + homeobox) |
+| `none` | 262 | no usable feature — full-length record left honest, per rule 3 |
 | *(NULL)* | 430 | no accession or no sequence; not touched |
 
 `domain` was added to the four kinds the draft listed: bHLH, bZIP, MBD, RHD, MH1
 and others annotate their binding module as `DOMAIN` with no `DNA_BIND` feature
 at all, so without it 214 bHLH and 108 bZIP records would have fallen to `none`.
 
-By family: zf-C2H2 921/927, Homeobox 378/379, bHLH 208/208, bZIP 100/105,
-HMG 98/101, Fork_head 94/94, ZBTB 83/83, MYB 52/52, T-box 34/34. The families
-that stay at `none` are `Others` (74/160), MH1, STAT, Tub, AP-2, GTF2I, AF-4 —
-each needs a curated keep rule, and guessing one is worse than reporting the gap.
+By family: zf-C2H2 911/927, Homeobox 378/379, bHLH 208/208, Fork_head 94/94,
+ZBTB 83/83, MYB 52/52, T-box 34/34. The families that stay at `none` are
+`Others`, MH1, STAT, Tub, AP-2, GTF2I, AF-4 — each needs a curated keep rule,
+and guessing one is worse than reporting the gap.
 
 ### Keep list is data-driven, and short names match exactly
 
 `--survey` prints every unclassified `DOMAIN` description, which is how the keep
 list was built rather than assumed. It also caught a real hazard: substring
 matching on short domain names is wrong — `tea` is inside *Protease* and `rel`
-inside *Related*. Short names now live in `KEEP_DOMAIN_EXACT` and must match the
-whole description (with any trailing repeat index stripped).
+inside *Related*. Short names live in `KEEP_DOMAIN_EXACT` / `EXCLUDE_DOMAIN_EXACT`
+and must match the whole description (with any trailing repeat index stripped).
 
 The survey confirms the drops are right too: the most common dropped domain is
 **NR LBD** (96) — the nuclear-receptor *ligand*-binding domain, correctly not
 carried into a fusion — followed by SET, PAS, Orange, ELM2, LIM, SH2.
 
+## Post-review corrections (2026-09-04)
+
+A code review of the first implementation found a defect that reintroduced the
+exact failure the script exists to prevent, plus five smaller ones. All are
+fixed; the numbers above are the corrected run.
+
+**Not every zinc finger binds DNA.** `ZN_FING` features were kept
+unconditionally, so PHD, RING, ZZ, SP-RING and RanBP2 fingers — protein- and
+histone-interaction modules — anchored the span. **NSD2**'s real DBD is the
+69-aa HMG box at 453-521, but its four PHD fingers at 667-1286 stretched the
+span to 447-1292: **846 aa carrying the entire SET methyltransferase**, on a
+record the gates passed. `ZNF_KEEP_TYPES` now whitelists C2H2, NR C4, GATA,
+THAP and BED fingers by their `/note`; NSD2 extracts to 447-527. TADA2A
+(anchored at 6 by a ZZ finger, 436 of 443 aa) and ZMIZ2 (labelled `znf_array`
+on an SP-RING SUMO-ligase finger) are likewise fixed.
+
+**The review flag tested containment, not overlap** — a dropped domain
+straddling a boundary was carried but never flagged, and Gate 3 passed
+vacuously on those. Now an overlap.
+
+**The span had no upper bound.** MGA extracted 78-2480 — 2,403 aa of a 3,065-aa
+protein — because two distant keep-features bracketed the middle, and nothing
+named landed inside, so `dbd_review_flag` stayed 0. Spans whose DNA-binding
+feature coverage falls below `MIN_SPAN_COVERAGE` (0.5) are now flagged: MGA at
+10%, TRPS1 19%, ADNP 37%. Review flags went 32 → 287, which is the honest count.
+
+**The flank could reach into an excluded domain.** ZKSCAN8's first finger starts
+at 322 and its KRAB ends at 316, so `FLANK = 6` put a KRAB residue in the
+construct — 26 records. The boundary is now pulled back to the excluded domain's
+edge; only the flank shortens, the span stays contiguous.
+
+**A failed fetch batch was skipped**, and `main()` could not tell "fetch failed"
+from "no features" — one transient HTTP error would have written
+`dbd_extraction='none'` over a good extraction for up to 100 accessions. It now
+raises; everything already fetched is cached, so a re-run resumes.
+
+**`04_build_library.py` silently erased the whole extraction.**
+`insert_or_replace` filled every schema column from the record and
+INSERT-OR-REPLACEd; no source TSV carries `dbd_*`, so an ordinary pipeline run
+NULLed all 3,248 DBD rows — and `fuse.py` would then quietly fall back to
+full-length sequences. An update now touches only the columns the record
+mentions. Verified: after a full `04` run, 2,556 spans survive.
+
+Two smaller ones: `lo` was not clamped to the sequence length (an isoform
+mismatch would emit a zero-length "extraction"), and `row["subtype"] or "?"`
+never fell back because a pandas NULL is `float('nan')`, which is truthy, so the
+family tally logged a literal `nan` key.
+
 ### Validation
 
 All three gates pass (`--validate`, exit 0):
 
-- **Length sanity** — 1,004 ZnF records cross-checked against the independently
-  stored `zinc_finger_count`; **0** spans too short to hold the fingers claimed
-  (threshold 20 aa/finger; a C2H2 finger is ~23 aa plus a ~5 aa TGEKP linker).
-  Only *too short* fails: a span longer than the pitch is legitimate, because a
-  split array legitimately spans the gap between two clusters.
-- **Known anchors** — **7/7** exact, and the extracted sequences are byte-identical
-  to the by-hand extraction used for the fib→β constructs (plan step 6).
-- **KRAB audit** — **422** records dropped a KRAB domain; **0** retain one inside
-  the kept span. This is the failure that motivated the work, and it is now
-  measured rather than assumed: 422 chassis, not the two the run happened to pick.
+- **Length sanity** — 1,300 ZnF records cross-checked; **0** spans too short to
+  hold the fingers they kept (threshold 20 aa/finger; a C2H2 finger is ~23 aa
+  plus a ~5 aa TGEKP linker). The reference is the count of fingers the span
+  actually kept, re-derived from the cached feature table — `zinc_finger_count`
+  counts every `ZN_FING` including PHD and RING, so it is an upper bound.
+  *(That over-count is a live bug elsewhere: `af3.py` adds one Zn ion per
+  `zinc_finger_count`, so a PHD-bearing chassis gets too many ions.)*
+- **Known anchors** — **7/7** exact, and byte-identical to the by-hand
+  extraction used for the fib→β constructs (plan step 6).
+- **KRAB audit** — **422** records dropped a KRAB; **0** where the span reaches
+  into one. Three (ZNF132, ZNF418, ZNF256) have a KRAB annotation that overlaps
+  their first kept finger — an annotation conflict with no correct trim, since
+  pulling the boundary back would cut into the finger. Those are reported and
+  flagged for review rather than failing the gate; the honest response is to
+  exclude the chassis at design time.
 
 ### Review flags
 
-32 records set `dbd_review_flag`, i.e. an excluded domain or an effector-annotated
-region lies *inside* the kept span and is therefore carried along. Real ones:
-**NSD2/KMT2C** (a SET methyltransferase inside the span), **ZNF541/TRERF1/Zfp541**
-(ELM2, a NuRD-recruiting module — an unintended closer), **ATF7** (transactivation
-domain), **ZHX2/ZHX3** ("required for repressor activity"), **BAZ2A/BAZ2B** (DDT).
-Conservative ones: **REST**, **YY1**, **FOS**, where the flagged region is itself
-required for DNA binding. The flag is a review prompt, not a verdict.
-
-Note the shape of this result: the KRAB gate is clean because KRAB is always
-N-terminal to the ZnF array, but ELM2 and SET sit *inside* their spans, so they
-cannot be removed by trimming at all. Those chassis need excluding at design
-time, which is what the flag is for.
+287 records set `dbd_review_flag` — an excluded domain or effector-annotated
+region overlaps the kept span, or the span is mostly not DNA-binding feature.
+Real ones: **NSD2/KMT2C** (SET), **ZNF541/TRERF1** (ELM2, a NuRD recruiter — an
+unintended closer), **ATF7** (transactivation domain), **ZHX2/ZHX3**, **MGA**
+and **TRPS1** (span coverage). Conservative ones: **REST**, **YY1**, **FOS**,
+**HINFP**, where the flagged region is itself required for DNA binding.
+The flag is a review prompt, not a verdict.
 
 ### Consumers
 

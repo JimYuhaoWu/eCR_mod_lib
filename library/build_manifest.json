@@ -520,6 +520,35 @@
         }
       ],
       "notes": "updated=11490  rebuild=False"
+    },
+    {
+      "script": "04_build_library.py",
+      "timestamp": "2026-09-04T08:35:50.235913+00:00",
+      "records_added": 0,
+      "sources": [
+        {
+          "module_type": "DBD",
+          "source_file": "/mnt3/wuyuhao/eCR/eCR_mod_lib/data/processed/dbd_raw.tsv",
+          "records_in_file": 3248,
+          "inserted": 0,
+          "updated": 3248
+        },
+        {
+          "module_type": "ED",
+          "source_file": "/mnt3/wuyuhao/eCR/eCR_mod_lib/data/processed/ed_raw.tsv",
+          "records_in_file": 7703,
+          "inserted": 0,
+          "updated": 7703
+        },
+        {
+          "module_type": "CR",
+          "source_file": "/mnt3/wuyuhao/eCR/eCR_mod_lib/data/processed/cr_raw.tsv",
+          "records_in_file": 539,
+          "inserted": 0,
+          "updated": 539
+        }
+      ],
+      "notes": "updated=11490  rebuild=False"
     }
   ]
 }
