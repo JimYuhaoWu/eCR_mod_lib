@@ -484,6 +484,89 @@ source on top of one.
 5. **Reconsider the Codebook ingest** against whatever residual remains. On
    today's numbers that is 47 TFs and falling.
 
+## 6d. Taxon fix: executed 2026-09-17, with results
+
+Implemented, run, gated. `01_fetch_dbd.py` → `04_build_library.py` on the server.
+
+| | before | after |
+|---|---|---|
+| human DBDs with a motif | 964 / 1,637 (59%) | **1,058** / 1,637 (65%) |
+| mouse DBDs with a motif | 213 / 1,611 (13%) | **737** / 1,611 (46%) |
+| motifs gained | — | **618** |
+| motifs lost | — | **0** |
+| version bumps (same accession) | — | 816 |
+| accession changes | — | 19 |
+
+Gates, all passing: **94/94** of the predicted genes gained a motif; **0 rows lost**
+one; the extraction columns survived `04` untouched (2,556 spans, 287 flags —
+identical to before, so the `insert_or_replace` fix holds); the 7 rows with no
+`uniprot_id` stayed empty.
+
+**Mouse 13% → 46% is the headline.** Most JASPAR profiles are human-derived, so
+mouse rows were the side the taxon filter starved. **This makes §6b's
+orthologue-transfer recommendation largely moot** — the fix delivered those
+motifs as correctly-matched profiles, with no cross-species inference to justify.
+A better outcome than the plan proposed.
+
+All 19 accession changes were checked by hand: every one is a same-gene alternate
+profile, none attaches another gene's motif, and 4 are UNVALIDATED→CORE upgrades.
+These 19 genes are ones where JASPAR genuinely offers several profiles; the
+lowest-accession tiebreak is stable, not principled, and they deserve curation.
+
+### Churn on the eight-eCR deliverable: negligible
+
+Re-scoring each design at its already-chosen site, 6 of 7 chassis having changed
+matrix version: the largest move is **+0.046** (HNF1A `MA0046.2`→`.3`), one small
+decrease (EGR3, −0.0024), four designs now at exactly 1.0. **No design is
+invalidated.**
+
+## 6e. The scoring defect this uncovered: `motif_score` is saturated
+
+Gate 3 of §8 predicted that a fixed cut on a self-normalised log-odds scale would
+not be comparable across motifs. Measured on the real bundle, the problem is
+worse than predicted: **the existing scale is already degenerate, before any new
+motif source.**
+
+`target.py` on bundle BJ_to_beta, `--top-n` defaults differing between runs so
+the comparison is over the 50 regions common to both:
+
+| | old library (964 motifs) | new library (1,058) |
+|---|---|---|
+| site rows at `motif_score` **exactly 1.0** | 7,172 / 35,217 (**20.4%**) | 2,234 / 4,711 (**47.4%**) |
+| median DBDs **tied at 1.0** per region | **16** | **31** |
+| max tied at 1.0 in one region | 56 | 129 |
+| distinct DBDs reaching 1.0 anywhere | 321 | 422 |
+| top-ranked DBD changed vs before | — | **47 of 50 regions** |
+| best score improved / dropped | — | **0 / 0** |
+
+The top DBD changed for 47 of 50 regions while the best score moved for **none**
+of them, because a median of 31 DBDs are tied at exactly 1.0 and the "winner" is
+whichever the sort happens to surface. `best_site_score` normalises by the PWM's
+own theoretical maximum, and over a 30-bp window a perfect-scoring sub-window is
+near-certain for many PWMs — especially short, low-information ones. So:
+
+- **The on-target axis carries almost no discriminating information at the top.**
+  `design_score = motif_score × specificity` is effectively `≈ specificity` for
+  any candidate in the tied pool.
+- **The designability delta from this fix is zero in this bundle** — the gap
+  report was already 0 gaps / 100% designable before it. The 618 new motifs did
+  not make more regions designable; they **doubled the size of an arbitrary tie**.
+  Reporting the fix as a designability win would have been false, and only the
+  tie measurement shows it.
+- The eight selected chassis therefore were *not* chosen on on-target strength;
+  they cannot have been. They were chosen by specificity/burden and the
+  downstream disjointness and structural filters. That is reassuring for the
+  deliverable's validity and damning for the score.
+
+**This needs a decision before any further library expansion**, Codebook or
+otherwise: adding motifs to a saturated on-target score adds ties, not
+candidates. The fix direction is the one Gate 3 already names — a per-motif
+threshold at matched expected false-positive rate, using the p-value machinery in
+`fimo.py` (`FIMO_PVALUE_THRESHOLD = 1e-4`) — plus reporting motif length and
+information content alongside the score so saturation is visible rather than
+inferred. Not attempted here: it is a scoring redesign, not a bug fix, and it
+changes every ranking in the project.
+
 ## 7. Ingest
 
 Follows the established `02_seed_ed.py` pattern — a declarative source entry,

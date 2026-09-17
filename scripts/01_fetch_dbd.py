@@ -227,37 +227,75 @@ def lookup_uniprot_by_gene(gene: str, taxon_id: str, session: requests.Session,
 
 # ── Step 3: Fetch JASPAR motif ID ────────────────────────────────────────────
 
+def _matrix_parts(matrix_id: str) -> tuple[str, int]:
+    """Split a JASPAR accession into (base, version): 'MA1724.2' -> ('MA1724', 2)."""
+    base, _, ver = matrix_id.partition(".")
+    return base, (int(ver) if ver.isdigit() else 0)
+
+
 def fetch_jaspar_id(gene: str, taxon_id: str, session: requests.Session,
                     api_base: str) -> str | None:
     """
-    Query JASPAR for a matrix matching the gene name + taxon.
-    Returns the best matrix ID (e.g. 'MA0142.1') or None.
+    Query JASPAR for a matrix matching the gene name, anywhere in vertebrates.
+    Returns the highest-versioned matching matrix ID (e.g. 'MA1724.2') or None.
+
+    NOT filtered by `taxon_id`. JASPAR tags a profile with the species of the
+    protein the experiment used, not the species the profile applies to, and CORE
+    profiles are vertebrate-wide. MA1724 was derived from mouse Rfx6, so
+    `?name=RFX6&tax_id=9606` returns nothing and human RFX6 was recorded
+    motif-less while the mouse row carried MA1724.1 -- the same profile, already
+    in the library, on the other species' row. That split 94 human DBDs (89 CORE)
+    off from motifs we could already resolve, and since target.py drops
+    motif-less DBDs it silently removed RFX6, ISL1, PTF1A and NKX2-1 from every
+    design run. `taxon_id` is kept in the signature for the caller's sake but is
+    deliberately not part of the query or the cache key.
     """
-    cache = RAW_DIR / "jaspar" / f"{gene}_{taxon_id}.json"
+    cache = RAW_DIR / "jaspar" / f"{gene}_vertebrates.json"
     if cache.exists():
         import json
         data = json.loads(cache.read_text())
-        results = data.get("results", [])
-        return results[0]["matrix_id"] if results else None
+    else:
+        # page_size must exceed the version count for a gene: versions are
+        # separate results, and truncating them loses the current matrix.
+        url = (f"{api_base}/matrix/?name={gene}&tax_group=vertebrates"
+               f"&format=json&page_size=50")
+        resp = _get(url, session, timeout=15)
+        if resp is None:
+            return None
+        import json
+        data = resp.json()
+        cache.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
-    url = f"{api_base}/matrix/?name={gene}&tax_id={taxon_id}&format=json&page_size=5"
-    resp = _get(url, session, timeout=15)
-    if resp is None:
+    # Exact name only. The API's `name` filter is not exact, so a substring hit
+    # would attach another gene's motif to this record.
+    exact = [r for r in data.get("results", [])
+             if str(r.get("name", "")).upper() == gene.upper()]
+    if not exact:
         return None
 
-    import json
-    data = resp.json()
-    cache.write_text(json.dumps(data, indent=2), encoding="utf-8")
-
-    results = data.get("results", [])
-    if not results:
-        return None
-
-    # Prefer exact name match, fall back to first result
-    for r in results:
-        if r.get("name", "").upper() == gene.upper():
-            return r["matrix_id"]
-    return results[0]["matrix_id"]
+    # Highest version, not the first result. A version bump is a re-derived
+    # matrix, so taking results[0] pinned most of the library to '.1' and scored
+    # every design against a superseded PWM.
+    #
+    # Versions are only comparable WITHIN an accession. PTF1A has three distinct
+    # CORE profiles all named 'Ptf1A' (MA1618, MA1619, MA1620), so a plain max
+    # over versions picks between different matrices on a number that means
+    # nothing across them. Take the newest version of each accession, then the
+    # lowest accession, which is at least stable across runs and releases.
+    # Choosing between genuinely different profiles for one TF needs curation,
+    # not a tiebreak, so the alternatives are left in the cached JSON rather
+    # than resolved here.
+    newest: dict[str, int] = {}
+    for r in exact:
+        base, ver = _matrix_parts(r["matrix_id"])
+        if ver > newest.get(base, -1):
+            newest[base] = ver
+    # min() over the accession strings also prefers a CORE 'MA....' profile to an
+    # UNVALIDATED 'UN....' one ('M' < 'U'), which is the right precedence and is
+    # relied on here -- 4 of the 19 accession changes this fix produced were
+    # UN -> MA upgrades (NANOG UN0805.1 -> MA2339.1, FOSB, BCL11B).
+    chosen = min(newest)
+    return f"{chosen}.{newest[chosen]}"
 
 
 # ── Step 4: Assemble processed table ─────────────────────────────────────────
