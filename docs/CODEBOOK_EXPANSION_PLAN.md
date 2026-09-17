@@ -266,6 +266,224 @@ to the ingest.
 
 ---
 
+## 6b. Step 0 — RESULTS (measured 2026-09-17)
+
+Step 0 is done. It changes the recommendation, so read this before §7.
+
+**Source artefacts used.** Zenodo 15667805 → `MEX_top1.zip` (0.21 MB, 236 files,
+one representative motif per TF) and `metadata_complete_motif.zip` (2.58 MB →
+`complete_metadata_motif_15-06-2025.tsv`, 202,868 candidate motifs). The metadata
+carries **`Approved`** (dataset passed curation, yes/no), `Overall rank`, `Tool`
+and `Train data` per motif. 394 TFs assayed; 159,063 approved motif rows;
+**236 TFs with an approved motif** (= 177 Codebook + 58 controls + 1).
+
+> **[corrected] The paper has no confidence *tiers*, but the data does carry a
+> binary `Approved` curation flag plus a per-motif `Train data` platform.** §5's
+> rule is therefore implementable mechanically after all, straight off this table
+> — better than the draft assumed.
+
+> **[corrected] The motifs ship as `.ppm` — position *probability* matrices.**
+> This confirms the §7 normalisation hazard as fact rather than caution:
+> `scan.py` does `motif.counts.normalize(pseudocounts=0.5)`, which assumes
+> counts. Applied to probabilities summing to 1.0 per column, a 0.5 pseudocount
+> **swamps the matrix entirely** and every score is garbage — silently.
+> `MEX_motifs_complete.tgz` ships PCMs as well; use those, or restore counts from
+> the PPM against a stated effective count.
+
+### The intersection
+
+| | count |
+|---|---|
+| Codebook TFs with an approved motif | 236 |
+| **in our library, already carrying a motif** | **153** |
+| ⤷ of which the motif is **already the Codebook motif**, arrived via JASPAR | **96** |
+| ⤷ independent motif → genuine comparison case | 57 |
+| **in our library, motif-less → TARGET SET** | **52** |
+| ⤷ clean extracted span (buildable end to end) | **35** |
+| ⤷ span review-flagged | 12 |
+| ⤷ no span | 5 |
+| ⤷ **already in JASPAR today** (free, no ingest) | 5 |
+| ⤷ genuinely absent from JASPAR | **47** |
+| not in the library at all → new DBD records | 31 |
+
+### The finding: the Codebook is already reaching us through JASPAR
+
+**96 of the 153 overlap motifs are Codebook-derived**, sourced to PMIDs
+39605368 / 39605320 / 39605530. And **101 of the 143 human `MA≥2000`
+(JASPAR-2024-era) motifs in the library — 71% of that entire bin — belong to
+Codebook TFs.** JASPAR has been absorbing the Codebook, and our ordinary JASPAR
+path has been quietly collecting it for us.
+
+**[corrected] This reverses §4's verdict on option (a).** The revision called
+"wait for JASPAR deposition" the weakest option because the paper announces no
+deposition. The paper doesn't, but JASPAR did it anyway — and has already
+delivered 96 of the 236. Option (a) is not a gamble on a future release; it is a
+process **already two-thirds complete**.
+
+So the true value of building the `motif_id` / `motif_source` architecture is not
+673 records, and not 177 TFs. It is the **47-TF residual** JASPAR has not yet
+absorbed — of which ~26 have a clean span — and that residual **shrinks with
+every JASPAR release**. Six modules across two repos, a threshold recalibration
+and a specificity re-scaling, to capture 47 TFs that are arriving anyway, is poor
+value. **Recommendation: defer the custom ingest.**
+
+### What to do instead, in order of value per unit of work
+
+1. **Pay down JASPAR annotation debt first — no architecture at all.** Five of
+   the 52 target TFs have had JASPAR motifs for years: RXRA (`MA0512`), SOX5
+   (`MA0087`), HMGA1 (`MA2124`), PRDM5 (`MA1999`), ZFAT (`UN0676`). `MA0512` and
+   `MA0087` are not obscure. Their absence from our rows is **our annotation
+   debt, not the field's gap** — part of the 673 is simply un-recorded. Sizing
+   this across all 673 is running now (§6c); if it is large, it is by far the
+   cheapest designability win available and needs no schema change, no new motif
+   source, and no recalibration.
+2. **Mouse orthologue transfer — the biggest payoff, and still no new motif
+   source.** 30 of the 52 target TFs have mouse rows and **25 of those are
+   motif-less**. Mouse coverage is 213/1,611 (13%) against 59% for human, and the
+   flagship runs are mouse. Transfer reuses existing `jaspar_id` values on mouse
+   rows, gated on percent identity over the extracted DBD span — a measurement
+   the extraction work has only just made possible. This is worth more to the
+   actual pipeline than the entire human Codebook ingest.
+3. **Re-run `prefetch.py` against current JASPAR** and re-measure the residual.
+   Cheap, and it tells us the absorption rate — which is the number that decides
+   whether the residual is ever worth custom code.
+4. **Only then reconsider the ingest**, if the residual is both large and stable.
+
+### Gate 2's fixture is 57 TFs, not 153 — and the difference is circularity
+
+The 96 TFs whose JASPAR motif *is* the Codebook motif cannot validate an ingest
+of Codebook motifs: comparing a motif to itself agrees by construction, and a
+gate that cannot fail is not a gate. The usable fixture is the **57 TFs with an
+independently derived motif** (ENCODE, ReMap, older JASPAR). Anyone running
+Gate 2 on all 153 would get a spectacular agreement statistic that means nothing
+— and this is precisely the trap the "gates that can actually fail" principle
+exists to catch.
+
+### Caveats on these numbers
+
+- Matching is by **gene symbol**, uppercased, against `gene_symbol` falling back
+  to `name`. Symbol aliases will cause some undercount in the "31 not in library"
+  row; several of those (KDM2A, PHF21A, TET3, TCF20, MBNL2, FBXL19, GLYR1,
+  DNTTIP1) are chromatin proteins that AnimalTFDB plausibly does not class as
+  TFs, so they are genuinely new records rather than alias misses. A UniProt
+  accession join would firm this up and is the one refinement worth making.
+- `AC092835`, `ZNF705EP`, `ZNF788P` are a clone-based locus and two pseudogenes.
+  Do not create DBD records for them without checking they encode a real protein.
+- `Approved` is a **dataset-level** curation flag, not a per-motif quality score;
+  do not read it as the expert committee's representative-PWM selection.
+- MEX top-1 selection is **by benchmark metric**, so this intersection is a TF
+  *list* measurement. It is valid for sizing — the TF roster is the same — but
+  the PWMs to ingest must still come from the paper's Supplementary Data 1 (§3).
+
+## 6c. The real finding: `01_fetch_dbd.py` assigns motifs by the wrong taxon
+
+Step 0's cheapest side-check turned out to matter more than the Codebook. All 673
+motif-less human DBD rows were queried against current JASPAR by gene name:
+
+| | count |
+|---|---|
+| motif-less human DBD genes | 673 |
+| **JASPAR has a motif we never recorded** | **94** |
+| ⤷ CORE collection (not UNVALIDATED) | 89 |
+| ⤷ **with a clean extracted span → designable *and* buildable today** | **74** |
+| ⤷ span flagged / no span | 13 / 7 |
+| genuinely absent from JASPAR | 579 |
+
+**94 is twice the Codebook's 47-TF residual, and it costs no new architecture at
+all** — no `motif_id`, no `motif_source`, no threshold recalibration, no
+coordinated two-repo release. 74 of them are immediately buildable.
+
+### Why they are missing, proven
+
+`fetch_jaspar_id` (`scripts/01_fetch_dbd.py:230`) queries
+`/matrix/?name={gene}&tax_id={taxon_id}`. **JASPAR tags a profile with the
+species of the protein the experiment used, not the species the profile applies
+to.** CORE profiles are vertebrate-wide. So:
+
+```
+/matrix/?name=RFX6&tax_id=9606              → count: 0
+/matrix/?name=RFX6&tax_id=10090             → MA1724.1, MA1724.2  (CORE)
+/matrix/?name=RFX6&tax_group=vertebrates    → MA1724.1, MA1724.2  (CORE)
+```
+
+`MA1724` was derived from mouse Rfx6, so the human query returns nothing and
+human RFX6 is recorded as motif-less — while the mouse row carries `MA1724.1`.
+The library confirms this pattern exactly, same gene, same profile:
+
+| gene | human `jaspar_id` | mouse `jaspar_id` |
+|---|---|---|
+| RFX6 | — | MA1724.1 |
+| ISL1 | — | MA1608.1 |
+| PTF1A | — | MA1619.1 |
+| NKX2-1 | — | MA1994.1 |
+| SOX17 | — | MA0078.1 |
+| RXRA | — | MA0512.1 |
+| FOXO1 | — | MA0480.1 |
+
+**93 of the 94 have a mouse row, and 91 of those already carry the motif.** The
+gap is not missing data — the same profile is already in the library on the other
+species' row. Motif coverage has been split by which species the JASPAR
+experiment happened to use (human 59%, mouse 13%), which is an artefact of the
+query, not biology.
+
+### This has been silently constraining the flagship deliverable
+
+The 94 include **RFX6, ISL1, PTF1A, NKX2-1, NR5A2, FOXO1, SOX17, MECOM, WT1** —
+pancreatic and endocrine identity TFs. `target.py:307` drops motif-less DBDs, so
+**every fib→β design run so far has been unable to consider RFX6, ISL1 or PTF1A
+as a DBD chassis**, for a reason that has nothing to do with their biology. Two
+of them (RFX6, ISL1) are on the carried TODO list of anchors for the model
+stratification re-run, where the same absence would have skewed the comparison.
+
+### Two further defects in the same function
+
+1. **`results[0]` takes an arbitrary version, and the library is mostly stale.**
+   RFX6 returns `MA1724.1` *and* `MA1724.2`; the script keeps whichever the API
+   lists first. Measured on a 120-motif sample of the human rows: **82 of 120
+   (68%) have a newer version in JASPAR than the one we hold** — e.g.
+   `MA0028.1 → .3`, `MA0798.1 → .3`, `MA0761.1 → .3`, `MA0500.2 → .3`. Library-wide,
+   1,074 of 1,177 `jaspar_id` values end in `.1`, which is the signature of
+   taking the first result rather than the current one.
+
+   This is **not cosmetic**: a JASPAR version bump is a re-derived matrix, so
+   every `motif_score`, every off-target burden and every `design_score` in the
+   project has been computed from superseded PWMs for roughly two thirds of the
+   library. Fixing it will move existing scores — which is exactly the rank-churn
+   problem §8 Gate 4 describes, arriving from a different direction and before
+   any Codebook work. Pin the specificity scale first (§8, option (i)), then
+   re-score, so the shift is measurable rather than silent.
+2. **The empty result is cached and never revisited.** The cache key is
+   `data/raw/jaspar/{gene}_{taxon_id}.json`, and a cached `results: []` returns
+   `None` forever. The bug froze itself in place, which is why it survived every
+   subsequent re-run and why `--force` alone will not clear it.
+
+### Fix
+
+Query `tax_group=vertebrates` (or query both taxa and prefer same-species),
+match the gene name **exactly** rather than trusting the API's filter, prefer the
+highest version, and invalidate the negative cache entries. Then re-run 01 → 04
+and re-measure. This is a small, self-contained change to one function with a
+ready-made regression fixture: the 94 genes must gain a motif, and the 7 rows
+with no `uniprot_id` must stay empty.
+
+**This supersedes the Codebook as the next piece of work.** It is smaller,
+strictly cheaper, twice the yield, and it repairs a defect rather than adding a
+source on top of one.
+
+### Revised order of work
+
+1. **Fix `fetch_jaspar_id`** — taxon filter, exact name match, highest version,
+   negative-cache invalidation. Yield: 94 human rows gain a motif (74 buildable),
+   plus a corrected matrix for ~68% of the motifs we already hold.
+2. **Pin the specificity scale** (§8 Gate 4, option (i)) *before* re-scoring, so
+   the ranking shift from step 1 is measured instead of absorbed.
+3. **Re-run 01 → 04, re-score, report rank churn** against the existing fib→β
+   bundle. RFX6/ISL1/PTF1A becoming available may change which chassis the
+   design run picks — that is the point, and it needs to be visible.
+4. **Mouse orthologue transfer**, gated on span identity (§6b item 2).
+5. **Reconsider the Codebook ingest** against whatever residual remains. On
+   today's numbers that is 47 TFs and falling.
+
 ## 7. Ingest
 
 Follows the established `02_seed_ed.py` pattern — a declarative source entry,
