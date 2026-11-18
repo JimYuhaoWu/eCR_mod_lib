@@ -86,6 +86,15 @@ should carry.
 | mouse `type='DBD'` | 1,611 |
 | — with a `jaspar_id` | 213 |
 
+**[2026-11-18] What the two span rows now mean.** F1 made both conditions a
+refusal in `eCR_predictor/fuse.py`: a record with no extracted span and a
+record with `dbd_review_flag = 1` are skipped unless `--allow-fulllength-dbd`
+or `--allow-flagged-dbd` is passed. So the **468** is no longer just "clean on
+inspection" — it is the set a design run will actually use, and the 85
+review-flagged records are now excluded by default rather than silently
+included. F7 does not change this membership: its `dbd_dropped_review_flag` is
+a separate column and F1 does not gate on it.
+
 A DBD with no motif is not merely under-annotated — it is **undesignable**.
 `target.py:307` drops motif-less DBDs outright (unlike `cli.py`, which keeps them
 with `motif_score = NA`), because a DBD that cannot be placed on a locus by
