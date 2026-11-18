@@ -64,6 +64,11 @@ CREATE TABLE IF NOT EXISTS modules (
     -- failure (an excluded domain INSIDE the span).
     dbd_dropped_regions     TEXT,
     dbd_dropped_review_flag INTEGER,
+    -- F3: zinc fingers the extracted span actually KEPT. `zinc_finger_count`
+    -- counts every ZN_FING feature over the whole protein, so it over-counts
+    -- for a span (ZFPM2: 8 claimed, 102-aa span). Consumers building Zn ions
+    -- for a fusion must prefer this one.
+    dbd_zinc_finger_count   INTEGER,
     target_or_mechanism     TEXT,
     quantitative_metric     REAL,
     quantitative_metric_label TEXT,
@@ -122,6 +127,7 @@ MIGRATIONS = [
     ("dbd_review_flag",      "INTEGER"),
     ("dbd_dropped_regions",  "TEXT"),
     ("dbd_dropped_review_flag", "INTEGER"),
+    ("dbd_zinc_finger_count", "INTEGER"),
 ]
 
 CREATE_INDEXES = [

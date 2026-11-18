@@ -397,6 +397,7 @@ SCREEN_FILES = {
     # ── Ludwig 2023 Cell Systems — viral transcriptional effectors ────────────────
     # Three sheets (vTR=adenovirus/other, CoV=coronavirus, HHV=herpesvirus).
     # Effect column determines subtype. Max Sequence = 80aa core domain.
+    # organism_override: these are viral proteins, not human (F6.2).
     "Ludwig_2023_vTR": {
         "path": MANUAL_DIR / "Ludwig_2023_mmc4.xlsx",
         "doi": "10.1016/j.cels.2023.05.008",
@@ -410,6 +411,7 @@ SCREEN_FILES = {
         "col_subtype": "Effect",
         "subtype_map": {"Activation": "activator", "Repression": "repressor"},
         "validation_level_override": "screen-validated",
+        "organism_override": "viral",
         "notes": (
             "Download mmc4.xlsx from https://doi.org/10.1016/j.cels.2023.05.008 "
             "and save as data/manual/Ludwig_2023_mmc4.xlsx"
@@ -428,6 +430,7 @@ SCREEN_FILES = {
         "col_subtype": "Effect",
         "subtype_map": {"Activation": "activator", "Repression": "repressor"},
         "validation_level_override": "screen-validated",
+        "organism_override": "viral",
         "notes": (
             "Download mmc4.xlsx from https://doi.org/10.1016/j.cels.2023.05.008 "
             "and save as data/manual/Ludwig_2023_mmc4.xlsx"
@@ -446,6 +449,7 @@ SCREEN_FILES = {
         "col_subtype": "Effect",
         "subtype_map": {"Activation": "activator", "Repression": "repressor"},
         "validation_level_override": "screen-validated",
+        "organism_override": "viral",
         "notes": (
             "Download mmc4.xlsx from https://doi.org/10.1016/j.cels.2023.05.008 "
             "and save as data/manual/Ludwig_2023_mmc4.xlsx"
@@ -728,7 +732,13 @@ def process_screen_data(log) -> list[dict]:
                 "type": "ED",
                 "subtype": subtype,
                 "name": name,
-                "organism": "Homo sapiens",
+                # F6.2: screen-derived EDs were all written as Homo sapiens,
+                # which labelled the 582 Ludwig 2023 viral effectors (HHV 261,
+                # vTR 186, CoV 135) as human. `organism` is what the public
+                # `load(type="ED", organism=...)` filter reads, so the viral
+                # sets carry an override; "viral" matches ED_VP16_TAD and
+                # ED_RTA_TAD, the two records that were already right.
+                "organism": info.get("organism_override", "Homo sapiens"),
                 "uniprot_id": uniprot_from_col,
                 "sequence_aa": seq,
                 "length_aa": len(seq) if seq else None,
