@@ -28,6 +28,10 @@ the extractor exists to close.
 
 **Repo:** eCR_predictor · **Files:** `fuse.py` (repo root, **not**
 `ecr_predictor/fuse.py`) (+ test)
+**Status: landed 2026-11-18**, eCR_predictor PR #3. Both conditions refuse by
+default — no span, and `dbd_review_flag = 1` — with `--allow-fulllength-dbd`
+and `--allow-flagged-dbd`. Against the shipped library a default run refuses
+979 of 3,248 records and keeps 2,269. 11 tests in `tests/test_fuse_dbds.py`.
 
 `fuse.py` prefers `dbd_sequence_aa` and warns on fallback — twice: a
 whole-input warning when the column is absent (`fuse.py:111-115`) and a
@@ -91,6 +95,9 @@ and proposed reusing `MIN_SPAN_COVERAGE` as the detector. Both were wrong.
 
 **Repo:** eCR_mod_lib · **Files:** `scripts/06_extract_dbd.py`, then re-run
 `06` + `04_build_library.py`
+**Status: code landed 2026-11-18.** Thresholds below were picked from the
+measured distribution and the gate is **conjunctive**, which the fix as drafted
+was not — see "Threshold, measured".
 
 `min(start) → max(end)` (`06:301-303`) is applied to **every** extraction kind,
 not to `bipartite`. Of the 256 spans over 500 aa: **`znf_array` 203**,
@@ -128,6 +135,22 @@ would have left untouched exactly the records the argument condemns.
 - Add a **new** `MAX_SPAN_FRACTION` gate on `span ÷ len(sequence_full_aa)`,
   applied to every extraction kind. Threshold to be chosen from the measured
   distribution, not guessed.
+- **[implemented 2026-11-18] Threshold, measured.** `span ÷ protein` over the
+  2,556 records with a span: p50 **0.295**, p75 0.547, p90 0.748, p95 0.820,
+  max 1.000. A fraction-only gate at 0.80 hits 151 records — but 17 of them
+  have spans under 300 aa and are **small proteins that genuinely are almost
+  all DBD**: `HOPX` 68 aa of 73 (93%), `HMGB3` 165 of 200, `Zfp239` 201 of 201.
+  Stripping their spans would be wrong. A length-only gate, conversely, would
+  condemn legitimate long C2H2 arrays whose span is a modest share of the
+  chain. So the implemented test is
+  `(frac ≥ 0.80 AND span ≥ 500 aa) OR span ≥ 1000 aa`
+  (`MAX_SPAN_FRACTION`, `MIN_DISPERSED_SPAN_AA`, `MAX_SPAN_AA`). The second
+  clause is needed because `ZFHX4` (79%) and `MGA` (78%) — two of this entry's
+  own hazard cases — sit *below* any fraction threshold that spares HOPX.
+  **Result: 117 of 2,556 become `dispersed` (4.6%), 42 of them carrying
+  `dbd_review_flag = 0` today.** It catches every case named above (ZNF462,
+  ZFHX3/4, MGA, ZNF521, ZNF423, and the four HIVEP records) and spares HOPX,
+  HMGB3/4, ZNF146, ZNF664 and Zfp239.
 - Above it, set `dbd_extraction = 'dispersed'` and write **no**
   `dbd_start/end/sequence_aa/length_aa`; keep the ratio in a note.
 - **[rev2] `dispersed` records must also set `dbd_review_flag = 1`** (or F1 must
@@ -165,6 +188,13 @@ rule*, which is a more interesting result than a trimming heuristic.
 ## F2b — **[new]** implausibly short spans are unchecked
 
 **Repo:** eCR_mod_lib · **File:** `scripts/06_extract_dbd.py`
+**Status: code landed 2026-11-18.** `MIN_PLAUSIBLE_SPAN_AA = 40` (a C2H2 finger
+is ~28 aa, a homeodomain ~60, so below 40 the span cannot hold one complete
+module) appends a reason to the review flag for **every** kind, and the
+acceptance gate gained an all-kinds length check beside the ZnF-pitch one.
+**23 records are newly flagged** — the 27 under-40-aa spans less the 4 already
+flagged — KMT2C and AHCTF1 (25 aa) among them. With F1 landed these are now
+refused by default rather than merely annotated.
 
 Found during the 2026-11-17 re-verification; the first draft audited only the
 over-long end. **27 spans are under 40 aa and 23 of those carry
@@ -195,6 +225,13 @@ fragment.
 
 **Repo:** eCR_mod_lib (**[rev]** moved — see below) · **Consumer:**
 `eCR_predictor/ecr_predictor/af3.py:162`
+**Status: code landed 2026-11-18** (mod_lib writes `dbd_zinc_finger_count`;
+eCR_predictor prefers it, falling back to `zinc_finger_count` with a warning,
+which stays correct for `refine.py`'s full-length folds). Of the 16 records that
+dropped a counted finger, **4 (HIVEP1/3 and the mouse orthologs) are now
+`dispersed`** and have no span at all, and the remaining **12 get a corrected
+count**: ZFPM2 8 → 3, ZFPM1 9 → 4, ZBTB48 11 → 10, ZBTB1 8 → 7, BCL11A 7 → 6,
+ZNF32 7 → 6.
 
 `zinc_count = int(pd.to_numeric(row.get("zinc_finger_count"), ...) or 0)` adds
 one `ZN` ion per count (`af3.py:109-113`), gated to
@@ -353,6 +390,17 @@ choose it deliberately for the API's sake, not for `target.py`'s.
 
 (1) is doc-only. (2) and (3) change data or schema and ride with the F2 rebuild.
 
+**Status: (2) and (3) code landed 2026-11-18.** (2) `02_seed_ed.py` grew an
+`organism_override` key, set to `"viral"` on the three Ludwig 2023 sheets —
+matching `ED_VP16_TAD` and `ED_RTA_TAD`, the two records that were already
+right — applied where the record is built instead of the hardcoded
+`"Homo sapiens"`. The 582 relabelled rows reach the library on the next `02` →
+`04` pass, and `load(type="ED", organism="Homo sapiens")` then returns 582
+fewer. (3) `structurally-resolved` is out of `05_validate.py`'s `VALID_LEVELS`
+with a comment saying why the schema CHECK still accepts it; the README line is
+F6.1 doc work and `eCR_predictor`'s `score.py:11` mapping is left in place,
+harmless while nothing emits the level.
+
 ---
 
 ## F8 — **[rev2 new]** the same ED sequence appears as both activator and repressor
@@ -437,6 +485,13 @@ survived has a garbage name. The 50 `Staller_2022_predictions` rows are fine
 ## F9 — **[rev2 new]** `dbd_extraction = 'none'` conflates two different causes
 
 **Repo:** eCR_mod_lib · **File:** `scripts/06_extract_dbd.py`
+**Status: code landed 2026-11-18.** A fetch that returned nothing now writes
+`dbd_extraction = 'no_features'`; `'none'` is reserved for a rule-3 abstention.
+The split is reported in the run log, and consumers must test
+`SPANLESS_VERDICTS` rather than `!= 'none'` — `validate()` was the one in-repo
+offender and now does. The actual split cannot be measured on this machine
+(every accession in the local cache has a feature line), so the first `06` run
+on the server reports it.
 
 At `06:583-587`, when `features.get(acc)` is `None` — i.e. UniProt returned
 nothing for that accession — the record is written as `'none'` with

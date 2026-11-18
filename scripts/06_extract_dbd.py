@@ -50,7 +50,12 @@ Rules that matter
    full-length record.
 4. Additive. `sequence_aa` is not touched; the original is also copied to
    `sequence_full_aa` so consumers can migrate deliberately.
-5. Say what was dropped. Every residue outside the kept span is recorded in
+5. A span is a DOMAIN, not a protein. `min(start)..max(end)` over two distant
+   features can sweep up almost the whole chain -- ZNF462 extracted 2,442 aa of
+   2,506 -- which is not an extraction, it is a relabelling. Spans that large
+   get `dbd_extraction='dispersed'` and no span columns, and implausibly short
+   ones are flagged (see MAX_SPAN_FRACTION / MIN_PLAUSIBLE_SPAN_AA).
+6. Say what was dropped. Every residue outside the kept span is recorded in
    `dbd_dropped_regions`, labelled from the feature table where UniProt names
    it, and `dbd_dropped_review_flag` is set when the dropped material looks
    like a self-association or repeat module. No keep rule changes: whether such
@@ -93,6 +98,41 @@ DB_PATH = ROOT / "library" / "module_library.db"
 FLANK = 6
 BATCH = 100          # accessions per UniProt search request
 MIN_SPAN_COVERAGE = 0.5   # below this, the span is mostly not DNA-binding feature
+
+# F2 -- a span that is effectively the whole protein is not an extraction.
+# `min(start)..max(end)` is applied to every kind, so two distant keep-features
+# bracket everything between them: ZNF462 (znf_array) came out 2,442 aa of
+# 2,506, ZNF521 1,271 of 1,311 with dbd_review_flag = 0. MIN_SPAN_COVERAGE does
+# not see these -- it measures feature density INSIDE the span, and a long C2H2
+# array is densely packed with fingers.
+#
+# The test is deliberately conjunctive. Fraction alone would condemn small
+# proteins that genuinely are almost all DBD and make perfectly good chassis:
+# HOPX is 68 aa of 73 (93%), HMGB3 165 of 200, Zfp239 201 of 201. Length alone
+# would condemn legitimate long arrays whose span is a modest share of the
+# chain. So: a big span that is also most of the protein, OR a span so long it
+# cannot be a domain at any fraction.
+#
+# Measured over the 2,556 records with a span: 117 become `dispersed` (4.6%),
+# 42 of them carrying dbd_review_flag = 0 today. It catches every case this
+# repo's audit named -- ZNF462, ZFHX3/4, MGA, ZNF521, ZNF423 -- and spares
+# HOPX, HMGB3/4, ZNF146, ZNF664 and Zfp239.
+MAX_SPAN_FRACTION = 0.80      # span / protein above this is "the whole protein"
+MIN_DISPERSED_SPAN_AA = 500   # ... but only when the span is also this long
+MAX_SPAN_AA = 1000            # a span this long is not a domain at any fraction
+
+# F2b -- the other end. 27 spans are under 40 aa, 23 of them unflagged: KMT2C
+# extracts 25 aa from a 4,911-aa protein, AHCTF1 25 of 2,266. A C2H2 finger is
+# ~28 aa and a homeodomain ~60, so below 40 aa the span cannot hold one
+# complete DNA-binding module. Flagged, not dropped: the span may still be the
+# right answer for a fragment-level question, and F1 in eCR_predictor refuses
+# flagged spans by default anyway.
+MIN_PLAUSIBLE_SPAN_AA = 40
+
+# Extraction verdicts that carry NO span. `none` is a rule-3 abstention,
+# `no_features` is a fetch that returned nothing (F9), `dispersed` is F2's
+# verdict above. Consumers must test membership here rather than `!= 'none'`.
+SPANLESS_VERDICTS = ("none", "no_features", "dispersed")
 
 # Dropped-region annotations that read as self-association. The extraction is
 # meant to remove effector function, not the module through which a factor
@@ -421,7 +461,7 @@ def extract_one(seq: str, feats: dict) -> dict:
                 "dbd_sequence_aa": None, "dbd_length_aa": None,
                 "dbd_excluded_domains": None, "dbd_review_flag": 0,
                 "dbd_dropped_regions": None, "dbd_dropped_review_flag": 0,
-                "n_znf": len(zn)}
+                "dbd_zinc_finger_count": None, "n_znf": len(zn)}
 
     first, last = min(s for s, _ in spans), max(e for _, e in spans)
     lo = max(1, min(first - FLANK, len(seq)))
@@ -447,7 +487,24 @@ def extract_one(seq: str, feats: dict) -> dict:
                 "dbd_sequence_aa": None, "dbd_length_aa": None,
                 "dbd_excluded_domains": None, "dbd_review_flag": 1,
                 "dbd_dropped_regions": None, "dbd_dropped_review_flag": 0,
+                "dbd_zinc_finger_count": None,
                 "n_znf": len(zn), "_inside": ["coordinates past sequence end"]}
+
+    # Rule 5 (F2): the span is the protein. Report the ratio and write no span,
+    # rather than storing a near-full-length sequence under a DBD column name.
+    # dbd_review_flag is set as well, so a `dispersed` record cannot be mistaken
+    # for a clean abstention by a consumer that only looks at the flag.
+    frac = len(sub) / len(seq)
+    if (frac >= MAX_SPAN_FRACTION and len(sub) >= MIN_DISPERSED_SPAN_AA) \
+            or len(sub) >= MAX_SPAN_AA:
+        return {"dbd_extraction": "dispersed", "dbd_start": None, "dbd_end": None,
+                "dbd_sequence_aa": None, "dbd_length_aa": None,
+                "dbd_excluded_domains": ";".join(n for n, _, _ in dropped) or None,
+                "dbd_review_flag": 1,
+                "dbd_dropped_regions": None, "dbd_dropped_review_flag": 0,
+                "dbd_zinc_finger_count": None, "n_znf": len(zn),
+                "_inside": [f"span would be {len(sub)} aa = {frac:.0%} of the "
+                            f"{len(seq)}-aa protein ({lo}-{hi}); dispersed"]}
 
     # Rule 2: a dropped feature the span carries is a conflict. The test is
     # OVERLAP, not containment: a domain straddling a boundary is still partly
@@ -469,6 +526,13 @@ def extract_one(seq: str, feats: dict) -> dict:
     coverage = covered / len(sub)
     if coverage < MIN_SPAN_COVERAGE:
         inside.append(f"span {coverage:.0%} DNA-binding feature")
+
+    # F2b: too short to hold one complete DNA-binding module, whatever the kind.
+    # The acceptance gate checks ZnF pitch only, and only for znf_array and
+    # bipartite, so dna_bind spans of 25 aa passed with the flag at 0.
+    if len(sub) < MIN_PLAUSIBLE_SPAN_AA:
+        inside.append(f"span {len(sub)} aa, under the "
+                      f"{MIN_PLAUSIBLE_SPAN_AA}-aa minimum for a DNA-binding module")
 
     if zn and (dna or keep_dom):
         kind = "bipartite"
@@ -496,6 +560,11 @@ def extract_one(seq: str, feats: dict) -> dict:
         "dbd_review_flag": 1 if inside else 0,
         "dbd_dropped_regions": ";".join(regions) or None,
         "dbd_dropped_review_flag": 1 if dropped_flagged else 0,
+        # F3: fingers the span actually KEPT. `zinc_finger_count` counts every
+        # ZN_FING feature over the whole protein, PHD/RING/FOG-type included, so
+        # af3.py added Zn ions for fingers the construct does not contain --
+        # ZFPM2 claims 8 for a 102-aa span of a 1,151-aa protein.
+        "dbd_zinc_finger_count": len(zn),
         "n_znf": len(zn),
         "_inside": inside,
         "_dropped_flagged": dropped_flagged,
@@ -560,7 +629,8 @@ KRAB_HINT = "krab"
 def validate(lib, log) -> int:
     """Three acceptance gates. Returns the number of failures."""
     df = lib.to_dataframe("DBD")
-    done = df[df["dbd_extraction"].notna() & (df["dbd_extraction"] != "none")]
+    done = df[df["dbd_extraction"].notna()
+               & ~df["dbd_extraction"].isin(SPANLESS_VERDICTS)]
     fails = 0
 
     # Gate 1 -- length sanity against the independently stored finger count.
@@ -590,6 +660,20 @@ def validate(lib, log) -> int:
             overcount.append(r["gene_symbol"])
     log.info(f"[gate 1/length] {len(znf):,} ZnF records checked, "
              f"{len(short):,} shorter than 20 aa per KEPT finger")
+
+    # F2b: the pitch test above covers znf_array and bipartite only, so a 25-aa
+    # dna_bind span was never length-checked at all. This one applies to every
+    # kind and needs no feature cache.
+    tiny = done[done["dbd_length_aa"].notna()
+                & (done["dbd_length_aa"] < MIN_PLAUSIBLE_SPAN_AA)]
+    log.info(f"[gate 1/length] {len(tiny):,} spans under "
+             f"{MIN_PLAUSIBLE_SPAN_AA} aa across all kinds "
+             f"({dict(tiny['dbd_extraction'].value_counts())})")
+    if len(tiny):
+        fails += 1
+        for _, r in tiny.head(10).iterrows():
+            log.warning(f"    {r['gene_symbol']}: {int(r['dbd_length_aa'])} aa "
+                        f"({r['dbd_extraction']}), flag {r['dbd_review_flag']}")
     if short:
         fails += 1
         for gene, length, kept in short[:10]:
@@ -715,10 +799,17 @@ def main() -> None:
         seq = str(r["sequence_aa"])
         line = features.get(acc)
         if line is None:
-            res = {"dbd_extraction": "none", "dbd_start": None, "dbd_end": None,
-                   "dbd_sequence_aa": None, "dbd_length_aa": None,
+            # F9: the fetch returned nothing for this accession, which is NOT
+            # the same as "the entry has features, none of them usable". The
+            # fetch logic above argues exactly this and the old code then wrote
+            # both as 'none', so the 262 `none` records were two causes mixed.
+            # `no_features` accessions are retryable; `none` ones are not.
+            res = {"dbd_extraction": "no_features", "dbd_start": None,
+                   "dbd_end": None, "dbd_sequence_aa": None,
+                   "dbd_length_aa": None,
                    "dbd_excluded_domains": None, "dbd_review_flag": 0,
                    "dbd_dropped_regions": None, "dbd_dropped_review_flag": 0,
+                   "dbd_zinc_finger_count": None,
                    "n_znf": 0, "_inside": []}
         else:
             res = extract_one(seq, parse_features(line))
@@ -731,6 +822,7 @@ def main() -> None:
             res["dbd_length_aa"], res["dbd_extraction"],
             res["dbd_excluded_domains"], res["dbd_review_flag"],
             res["dbd_dropped_regions"], res["dbd_dropped_review_flag"],
+            res["dbd_zinc_finger_count"],
             datetime.now(timezone.utc).isoformat(timespec="seconds"),
             r["module_id"],
         ))
@@ -743,6 +835,7 @@ def main() -> None:
                          if res["dbd_length_aa"] else None),
             "dbd_extraction": res["dbd_extraction"], "n_znf": res["n_znf"],
             "zinc_finger_count": r["zinc_finger_count"],
+            "dbd_zinc_finger_count": res["dbd_zinc_finger_count"],
             "excluded_domains": res["dbd_excluded_domains"],
             "review_flag": res["dbd_review_flag"],
             "inside_kept_span": ";".join(res.get("_inside", [])) or None,
@@ -759,6 +852,15 @@ def main() -> None:
     flagged = sum(1 for x in report if x["review_flag"])
     log.info(f"[extract] {flagged:,} records need review "
              f"(an excluded domain or effector region lies inside the kept span)")
+    log.info(f"[extract] spanless verdicts: "
+             f"none {kinds['none']:,} (rule-3 abstention), "
+             f"no_features {kinds['no_features']:,} (fetch returned nothing, "
+             f"retryable), dispersed {kinds['dispersed']:,} (span would have "
+             f"been >= {MAX_SPAN_FRACTION:.0%} of the protein and "
+             f">= {MIN_DISPERSED_SPAN_AA} aa, or >= {MAX_SPAN_AA} aa)")
+    short = sum(1 for x in report
+                if x["inside_kept_span"] and "-aa minimum" in x["inside_kept_span"])
+    log.info(f"[extract] {short:,} spans under {MIN_PLAUSIBLE_SPAN_AA} aa flagged")
     dropped_flagged = sum(1 for x in report if x["dropped_review_flag"])
     log.info(f"[extract] {dropped_flagged:,} records dropped a self-association "
              f"or repeat module OUTSIDE the kept span (dbd_dropped_review_flag; "
@@ -780,6 +882,7 @@ def main() -> None:
                 "dbd_sequence_aa=?, dbd_length_aa=?, dbd_extraction=?, "
                 "dbd_excluded_domains=?, dbd_review_flag=?, "
                 "dbd_dropped_regions=?, dbd_dropped_review_flag=?, "
+                "dbd_zinc_finger_count=?, "
                 "date_modified=? WHERE module_id=?", updates)
         lib.insert_provenance({
             "run_id": str(uuid.uuid4()),

@@ -48,7 +48,13 @@ LIBRARY_DIR = ROOT / "library"
 
 VALID_TYPES = {"DBD", "ED", "CR"}
 VALID_LEVELS = {"predicted", "motif-only", "ChIP-validated",
-                "screen-validated", "structurally-resolved"}
+                "screen-validated"}
+# "structurally-resolved" removed 2026-11-18 (F6.3): documented as a level,
+# used by zero records. The schema CHECK at schema.py:66-72 still accepts it --
+# SQLite cannot alter a CHECK in place and CREATE TABLE IF NOT EXISTS is a
+# no-op on a deployed library, so removing it there needs a deliberate table
+# rebuild. eCR_predictor/ecr_predictor/score.py:11 still maps it to confidence
+# "high"; harmless while nothing emits it.
 REQUIRED_COLS = ["module_id", "type", "name", "validation_level",
                  "source", "date_added", "date_modified"]
 
