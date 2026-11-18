@@ -17,22 +17,18 @@ DBD_MU_ZFP729A	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP871	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_RHOX3E	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZBTB16	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
-DBD_MU_ZBTB21	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_RHOX2D	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_GM9048	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP997	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP874B	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_B020011L13RIK	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
-DBD_MU_ZBTB40	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_GM14444	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
-DBD_MU_ESX1	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP160	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_AW146154	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP84	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP949	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP174	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP970	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
-DBD_MU_NKX6-2	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_GM2381	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP119B	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_RHOX1	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
@@ -106,7 +102,6 @@ DBD_MU_ZFP931	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP990	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_GM9040	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZIM1	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
-DBD_MU_ZKSCAN4	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP846	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP560	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP266	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
@@ -134,7 +129,6 @@ DBD_MU_ZFP595	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_GM28557	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP317	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP971	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
-DBD_MU_VEZF1	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_D130040H23RIK	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_GM6871	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_GM14401	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
@@ -151,7 +145,6 @@ DBD_MU_GM15446	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_GM20422	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_RHOX3A	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_DBX2	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
-DBD_MU_ZBTB26	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP444	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP810	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP773	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
@@ -171,7 +164,6 @@ DBD_MU_TADA2B	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP275	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_GM28360	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP341	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
-DBD_MU_USF3	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_GM10770	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP362	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_GM5767	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
@@ -181,9 +173,7 @@ DBD_MU_GM14403	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP273	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP334	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP119A	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
-DBD_MU_TFAP4	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_2010315B03RIK	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
-DBD_MU_ZSCAN22	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_RHOX7A	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_FOXL3	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_RHOX2F	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
@@ -206,7 +196,6 @@ DBD_MU_ZFP870	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP459	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_RHOX2B	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_AU041133	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
-DBD_MU_ZSCAN25	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_HMGXB4	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_GM9049	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP141	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
@@ -233,7 +222,6 @@ DBD_MU_RHOX4F	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP738	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP599	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZKSCAN2	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
-DBD_MU_MZF1	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP808	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_GM10226	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP398	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
@@ -267,7 +255,6 @@ DBD_MU_GM14418	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_GM14409	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP493	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP980	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
-DBD_MU_PLAGL2	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP955A	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_GM21994	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP707	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
@@ -287,7 +274,6 @@ DBD_MU_ZFP965	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP605	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP236	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_GM28047	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
-DBD_MU_ZSCAN29	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_GM12258	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_AW822073	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP438	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
@@ -303,7 +289,6 @@ DBD_MU_GM45871	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP866	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_GM14295	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_TOX2	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
-DBD_MU_ZKSCAN8	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_RHOX2H	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_TCF24	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_SP140	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
@@ -321,7 +306,6 @@ DBD_MU_ZFP788	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_DUXF3	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_CPHX1	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_BC025920	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
-DBD_MU_ZBTB12	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZSCAN4E	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_RHOX3C	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP217	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
@@ -391,7 +375,6 @@ DBD_MU_GM6020	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP251	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_GM3604	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP85	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
-DBD_MU_ZBTB37	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_ZFP101	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_GM44505	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
 DBD_MU_2210418O10RIK	dbd_no_identifier	DBD entry has neither jaspar_id nor uniprot_id
