@@ -493,7 +493,9 @@ UniProt feature. F1 would not catch Nanog, because its flag is 0.
   `dbd_dropped_regions` column — named features and unannotated gaps alike,
   as `start-end:label` with `label = unannotated` where UniProt is silent.
 - Flag when an unannotated dropped region is large (threshold to pick from the
-  distribution).
+  distribution) — in a **separate `dbd_dropped_review_flag` column**, never in
+  `dbd_review_flag`. **[decided 2026-11-17]** See the F7/F1 resolution under
+  Sequencing.
 - Add a **low-complexity / repeat screen** over dropped regions, so motifs like
   a W-every-5 repeat are surfaced rather than needing a manual read.
 - No keep-rule change: whether WR belongs in the construct is a biology
@@ -503,7 +505,9 @@ UniProt feature. F1 would not catch Nanog, because its flag is 0.
   `schema.py` DDL line **and** a `MIGRATIONS` entry (`schema.py:108-117`, whose
   comment at `:104-107` explains why omitting it leaves deployed libraries
   silently without the column), plus `ecr_predictor/output.py:45-47` if the
-  predictor is to see it.
+  predictor is to see it. **[decided 2026-11-17]** With the flag in its own
+  column this is **two** new columns — `dbd_dropped_regions` and
+  `dbd_dropped_review_flag` — so two DDL lines and two `MIGRATIONS` entries.
 
 **Why this matters beyond the data.** Nanog is a better motivating example for
 the methods section than the KRAB case: the KRAB failure was at least labelled,
@@ -552,14 +556,24 @@ more, noted in step 2.
 7. **F5 — after the data is final**, so the concordance numbers are the ones the
    paper reports.
 
-**[rev] Unresolved interaction between F7 and F1.** F7 flags large unannotated
-drops. *If* it reuses `dbd_review_flag`, `DBD_MU_NANOG` becomes flag 1 — its
-unannotated drop is 233 aa / 76% of the protein, past any plausible threshold —
-and F1 then skips it by default. The manuscript's step-3 Nanog chassis would
-disappear from design runs unless `--allow-flagged-dbd` is passed, directly
-against F7's "no keep-rule change". Resolve before implementing: either F7
-writes to a separate `dbd_dropped_review_flag` that F1 does not gate on, or F1
-gates only on the over-inclusion flag. This needs a decision, not a default.
+**[decided 2026-11-17] Interaction between F7 and F1 — resolved.** F7 flags
+large unannotated drops. *If* it reused `dbd_review_flag`, `DBD_MU_NANOG` would
+become flag 1 — its unannotated drop is 233 aa / 76% of the protein, past any
+plausible threshold — and F1 would skip it by default. The manuscript's step-3
+Nanog chassis would disappear from design runs unless `--allow-flagged-dbd` were
+passed, directly against F7's "no keep-rule change".
+
+**Decision: F7 writes a separate `dbd_dropped_review_flag`, and F1 does not gate
+on it.** Rationale: over-inclusion (a kept span containing an effector domain)
+and under-inclusion (a dropped region containing a function-essential module)
+are different hazards with different remedies, and a single flag cannot express
+which one fired. `dbd_review_flag` keeps its current meaning, so F1's refusal
+logic and the `--allow-flagged-dbd` override are unaffected, and the 468-record
+`dbd_review_flag = 0` cohort at `docs/CODEBOOK_EXPANSION_PLAN.md:83` does not
+change membership from F7 — only from F1's re-reading of the flag.
+`DBD_MU_NANOG` therefore stays in design runs with its 233-aa drop recorded,
+which is what step 3 needs: the chassis is testable *and* the pipeline says what
+it removed.
 
 **[rev2]** F2 would *not* also catch Nanog — its span is 23.6% of the protein,
 far below any `MAX_SPAN_FRACTION` — so F7 is the only fix that changes Nanog's
