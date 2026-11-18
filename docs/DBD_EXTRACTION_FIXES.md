@@ -543,6 +543,15 @@ result for a domain that both activates and represses depending on context.
 `chromatin_state_effect` to something that does not assert a direction for
 dual-readout rows. Cheapest honest option; leaves the pairing implicit.
 
+**Status: implemented 2026-11-18 (option A).** `readout` and
+`paired_module_id` are schema columns with migrations; `02_seed_ed.py` carries a
+`readout` key on the six dual-arm SCREEN_FILES entries (Mukund, DelRosso and
+HiTEff, activation and repression each). A sequence one sheet labels both ways
+gets `readout` from its own `subtype`, so Ludwig's within-sheet contradictions
+are treated like any other pair of arms rather than resolved by picking a
+winner. **162 rows are linked to a sibling**: Mukund 55 + 55, Ludwig vTR 14,
+Ludwig HHV 14, DelRosso 8 + 8, HiTEff 4 + 4.
+
 **Recommended: A, plus a separate rule for the 15 source-level cases.**
 A is minimal, loses nothing, and pays for itself twice because F10 needs the
 same column. The 5 Ludwig cross-sheet duplicates should be deduplicated at
@@ -657,8 +666,14 @@ Two measurements first, because they rule options out:
   (`Max avg pEF` vs `Max avg PGK`) and the other 486 are two different 80-aa
   tiles under one `<gene>_<n>` label, e.g. `ACTR8_1` as
   `NGKEKGGEKEKEQRGVKRPIVPALVPESLQ…` and `MTQAEKGDTENGKEKGGEKEKEQRGVKRPI…`,
-  overlapping windows with their own scores. Ludwig's 9 colliding ids, by
-  contrast, have **identical** sequences — true duplicates.
+  overlapping windows with their own scores.
+- **[corrected 2026-11-18] Ludwig's collisions are not duplicates.** This entry
+  first read them as identical rows, because the sequence and the metric label
+  do match. The `subtype` and the score do not: `BALF2_P03227_010` appears
+  twice in the HHV sheet with the same 80 aa, once as Activation (3.49) and
+  once as Repression (1.93). They are F8's within-sheet contradictions, not
+  redundancy, and collapsing them would have thrown away one of two directional
+  calls. **Library-wide only 2 rows are byte-identical duplicates.**
 
 So the shortfall is a mixture of a real identity bug (a tile is not identified
 by its gene and domain index) and harmless duplication, and **the survivor is
@@ -686,15 +701,30 @@ should ship anyway: a build that silently drops 9% of one source is worse than
 one that stops. ~15 lines, independent of A and B, no id changes.
 
 **Option D — deduplicate what is genuinely duplicated, key the rest.**
-Ludwig's 16 identical-sequence rows should collapse at ingest with a logged
-count rather than by accident in the upsert. Complements A or B rather than
-replacing them.
+Rows identical on sequence, metric label, readout and score should collapse at
+ingest with a logged count rather than by accident in the upsert. Complements A
+or B rather than replacing them. (**[corrected 2026-11-18]** this option
+originally named Ludwig's 16 rows as the duplicates to collapse; they are
+contradictions, and the genuine duplicate count is 2.)
 
 **Option E — accept and document.** 713 rows with distinct sequences stay out
 of the library. Not recommended, but worth naming: 697 of them are one screen's
 extra tiles, and the library already holds the best-scoring tile per domain
 label for that screen, so the loss is "fewer tiles per domain", not "missing
 domains".
+
+**Status: implemented 2026-11-18 (C and A).** `insert_or_replace` records
+every UPDATE that overwrites a *different* `sequence_aa`, and `04` aborts on any
+such row unless `--allow-duplicate-ids` is passed. `02_seed_ed.py` re-keys a
+colliding id by appending `~<sha256(sequence|metric_label)[:6]>` to **every**
+member of the group, so the id is a function of content and not of row order;
+rows that still collide take their `subtype`, and a final tie is numbered by
+score with an error logged. Measured over the real 7,703 ED rows: **7,701
+survive** (2 byte-identical duplicates collapse), 1,451 are re-keyed (DelRosso
+1,394), every id is unique, the id set is invariant under shuffled input, and no
+(source, sequence, metric label) triple is lost. One residual pair —
+`ED_ALERASOOL_2022_KLF6_KLF6-1`, identical on sequence, label and subtype — is
+numbered by score and logged.
 
 **Recommended: C now, then A with a `readout` column for the pEF/PGK split.**
 C is cheap, independent, and converts the whole class of defect from silent to

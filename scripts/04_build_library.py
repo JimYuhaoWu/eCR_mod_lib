@@ -52,6 +52,11 @@ def main():
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--rebuild", action="store_true",
                         help="Drop and recreate the database before importing")
+    parser.add_argument("--allow-duplicate-ids", action="store_true",
+                        help="Proceed when a source row overwrites a DIFFERENT "
+                             "sequence under an existing module_id. Without "
+                             "this the build fails rather than losing the row "
+                             "silently (F10).")
     args = parser.parse_args()
 
     log = get_logger("04_build_library", LOGS_DIR)
@@ -90,11 +95,20 @@ def main():
             # Drop rows without module_id
             records = [r for r in records if r.get("module_id")]
 
+            before = len(lib.clobbered) if hasattr(lib, "clobbered") else 0
             inserted, updated = lib.insert_or_replace(records)
             total_inserted += inserted
             total_updated += updated
+            lossy = lib.clobbered[before:]
             log.info(f"[{module_type}] {inserted} inserted  {updated} updated  "
                      f"(from {tsv_path.name})")
+            if lossy:
+                log.error(f"[{module_type}] {len(lossy)} row(s) overwrote a "
+                          f"DIFFERENT sequence under an existing module_id — "
+                          f"{len(records)} source rows cannot all reach the "
+                          f"library (F10)")
+                for mid, stored, incoming in lossy[:10]:
+                    log.error(f"    {mid}: stored {stored}... <- {incoming}...")
 
             sources_meta.append({
                 "module_type": module_type,
@@ -103,6 +117,15 @@ def main():
                 "inserted": inserted,
                 "updated": updated,
             })
+
+        if lib.clobbered and not args.allow_duplicate_ids:
+            log.error(f"ABORT: {len(lib.clobbered)} source row(s) were "
+                      f"overwritten under a colliding module_id. The library "
+                      f"would hold fewer records than the sources contain, "
+                      f"which is how 730 ED rows went missing before F10. Fix "
+                      f"the keying in the seed script, or pass "
+                      f"--allow-duplicate-ids to accept the loss.")
+            return 1
 
         # Export TSV
         tsv_out = LIBRARY_DIR / "module_library.tsv"
