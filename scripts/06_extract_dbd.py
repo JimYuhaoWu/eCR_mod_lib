@@ -617,7 +617,13 @@ ANCHORS = {
     "HNF1A":  (81, 285),
     "EGR3":   (269, 361),
     "ZNF793": (221, 395),
-    "ZNF850": (191, 1090),
+    # F2 reclassified this one deliberately, so the anchor is the VERDICT, not a
+    # span: ZNF850's extraction ran 191-1090, i.e. 900 aa = 83% of a 1,090-aa
+    # protein, ending at the C-terminus. That is what MAX_SPAN_FRACTION is for.
+    # It is also the fib->beta opener whose native KRAB motivated this script,
+    # and a 900-aa chassis was never usable anyway -- ~980 aa of fusion, ~2.9 kb
+    # against a ~4.7 kb AAV cargo (DBD_EXTRACTION_PLAN.md "Still open").
+    "ZNF850": "dispersed",
     "ZNF540": (181, 660),
     "ZNF444": (173, 306),
     "HINFP":  (9, 374),
@@ -694,13 +700,19 @@ def validate(lib, log) -> int:
 
     # Gate 2 -- known anchors.
     bad = []
-    for gene, (s, e) in ANCHORS.items():
+    for gene, expected in ANCHORS.items():
         hit = df[(df["gene_symbol"] == gene) & (df["organism"].astype(str).str.contains("sapiens", case=False, na=False))]
         if hit.empty:
             hit = df[df["gene_symbol"] == gene]
         if hit.empty:
             bad.append(f"{gene}: not in library"); continue
         r = hit.iloc[0]
+        if isinstance(expected, str):
+            if r["dbd_extraction"] != expected:
+                bad.append(f"{gene}: got {r['dbd_extraction']}, "
+                           f"expected {expected}")
+            continue
+        s, e = expected
         if (r["dbd_start"], r["dbd_end"]) != (s, e):
             bad.append(f"{gene}: got {r['dbd_start']}-{r['dbd_end']}, expected {s}-{e}")
     log.info(f"[gate 2/anchors] {len(ANCHORS) - len(bad)}/{len(ANCHORS)} match")
