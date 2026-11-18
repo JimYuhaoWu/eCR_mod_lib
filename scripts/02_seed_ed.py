@@ -27,6 +27,7 @@ Run
 from __future__ import annotations
 
 import argparse
+import hashlib
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -189,6 +190,11 @@ SCREEN_FILES = {
         ),
     },
     "DelRosso_2023_activators": {
+        # F8: this paper scored the same domains in both arms, ingested as two
+        # SCREEN_FILES entries. `readout` says which arm a row is, so the
+        # opposite `subtype` on a shared sequence reads as two measurements
+        # rather than a contradiction.
+        "readout": "activation",
         "path": MANUAL_DIR / "DelRosso_2023_SupTable.xlsx",
         "doi": "10.1038/s41586-023-05906-y",
         "sheet": "Activation Domains",
@@ -207,6 +213,11 @@ SCREEN_FILES = {
         ),
     },
     "DelRosso_2023_repressors": {
+        # F8: this paper scored the same domains in both arms, ingested as two
+        # SCREEN_FILES entries. `readout` says which arm a row is, so the
+        # opposite `subtype` on a shared sequence reads as two measurements
+        # rather than a contradiction.
+        "readout": "repression",
         "path": MANUAL_DIR / "DelRosso_2023_SupTable.xlsx",
         "doi": "10.1038/s41586-023-05906-y",
         "sheet": "Repression Domains",
@@ -320,6 +331,11 @@ SCREEN_FILES = {
     # High-throughput nuclear domain screens (Pfam-domain library).
     # DOI: TODO — confirm from paper. Validation: screen-validated.
     "HiTEff_activators": {
+        # F8: this paper scored the same domains in both arms, ingested as two
+        # SCREEN_FILES entries. `readout` says which arm a row is, so the
+        # opposite `subtype` on a shared sequence reads as two measurements
+        # rather than a contradiction.
+        "readout": "activation",
         "path": MANUAL_DIR / "HiTEff_SupTable.xlsx",
         "doi": "10.1016/j.cell.2020.11.024",
         "sheet": "NucAct_data",
@@ -337,6 +353,11 @@ SCREEN_FILES = {
         ),
     },
     "HiTEff_repressors": {
+        # F8: this paper scored the same domains in both arms, ingested as two
+        # SCREEN_FILES entries. `readout` says which arm a row is, so the
+        # opposite `subtype` on a shared sequence reads as two measurements
+        # rather than a contradiction.
+        "readout": "repression",
         "path": MANUAL_DIR / "HiTEff_SupTable.xlsx",
         "doi": "10.1016/j.cell.2020.11.024",
         "sheet": "NucRepr_data",
@@ -486,6 +507,11 @@ SCREEN_FILES = {
     # are loaded by excluding any label present in the HiTEff reference sheets.
     # Two entries: one for activator scores (Avg Act), one for repressor (Avg ReprD13).
     "Mukund_2023_activators": {
+        # F8: this paper scored the same domains in both arms, ingested as two
+        # SCREEN_FILES entries. `readout` says which arm a row is, so the
+        # opposite `subtype` on a shared sequence reads as two measurements
+        # rather than a contradiction.
+        "readout": "activation",
         "path": MANUAL_DIR / "Mukund_2023_mmc5.xlsx",
         "doi": "10.1016/j.cels.2023.07.001",
         "sheet": "Sheet1",
@@ -509,6 +535,11 @@ SCREEN_FILES = {
         ),
     },
     "Mukund_2023_repressors": {
+        # F8: this paper scored the same domains in both arms, ingested as two
+        # SCREEN_FILES entries. `readout` says which arm a row is, so the
+        # opposite `subtype` on a shared sequence reads as two measurements
+        # rather than a contradiction.
+        "readout": "repression",
         "path": MANUAL_DIR / "Mukund_2023_mmc5.xlsx",
         "doi": "10.1016/j.cels.2023.07.001",
         "sheet": "Sheet1",
@@ -751,6 +782,7 @@ def process_screen_data(log) -> list[dict]:
                 "source_version": "supplementary_table",
                 "source_date": now[:10],
                 "chromatin_state_effect": _EFFECT_MAP.get(subtype, ""),
+                "readout": info.get("readout"),
                 "notes": f"From {screen_name}; {info['doi']}",
                 "date_added": now,
                 "date_modified": now,
@@ -763,6 +795,137 @@ def process_screen_data(log) -> list[dict]:
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
+
+def _row_digest(rec: dict) -> str:
+    """Six hex characters over the content that distinguishes two rows sharing
+    a name: the sequence, and the metric label (DelRosso 2023 reports the same
+    domain at two promoters, `Max avg pEF` and `Max avg PGK`). Deterministic,
+    so a re-ingest produces the same id -- which an insertion-order suffix
+    would not."""
+    key = f"{rec.get('sequence_aa') or ''}|{rec.get('quantitative_metric_label') or ''}"
+    return hashlib.sha256(key.encode()).hexdigest()[:6]
+
+
+def resolve_ids(records: list[dict], log) -> list[dict]:
+    """Make `module_id` unique, and link dual-readout siblings (F10, F8).
+
+    `module_id` was f"ED_{screen}_{name[:40]}", and a library `name` is not
+    unique within a screen: 725 ids carried more than one row, so 04's upsert
+    overwrote 730 of them -- 713 with a sequence the survivor did not have.
+    Truncation was never the cause (no colliding id had two distinct names);
+    the rows are genuinely different tiles or conditions under one label.
+
+    Exact duplicates collapse with a count (Ludwig 2023 ships 16 such rows).
+    Anything still sharing an id gets `~<digest>` appended to EVERY member, so
+    the id is a function of content rather than of which row came first."""
+    by_id: dict[str, list[dict]] = {}
+    for rec in records:
+        by_id.setdefault(rec["module_id"], []).append(rec)
+
+    kept, dropped_dup, rekeyed = [], 0, 0
+    for mid, group in by_id.items():
+        if len(group) == 1:
+            kept.extend(group)
+            continue
+        seen, unique = set(), []
+        for rec in group:
+            fingerprint = (rec.get("sequence_aa"), rec.get("quantitative_metric_label"),
+                           rec.get("readout"), rec.get("quantitative_metric"))
+            if fingerprint in seen:
+                dropped_dup += 1
+                continue
+            seen.add(fingerprint)
+            unique.append(rec)
+        if len(unique) == 1:
+            kept.extend(unique)
+            continue
+        for rec in unique:
+            rec["module_id"] = f"{mid}~{_row_digest(rec)}"
+            rekeyed += 1
+        kept.extend(unique)
+
+    log.info(f"[ids] {len(by_id):,} distinct ids from {len(records):,} rows; "
+             f"{dropped_dup:,} exact duplicates collapsed, {rekeyed:,} rows "
+             f"re-keyed with a content digest")
+
+    # A digest over sequence and metric label still leaves Ludwig 2023's
+    # within-sheet contradictions colliding: BALF2_P03227_010 appears twice in
+    # the HHV sheet, same 80 aa, once as Activation (3.49) and once as
+    # Repression (1.93). Those are two directional calls on one tile, so the
+    # subtype is the discriminator -- content, not row order. Dropping either
+    # would be the silent loss this fix exists to stop.
+    final: dict[str, dict] = {}
+    remaining: dict[str, list[dict]] = {}
+    for rec in kept:
+        remaining.setdefault(rec["module_id"], []).append(rec)
+    for mid, group in remaining.items():
+        if len(group) == 1:
+            final[mid] = group[0]
+            continue
+        # EVERY member takes the suffix, not just the ones that arrived later,
+        # so the id stays a function of content rather than of row order.
+        for rec in group:
+            rec["module_id"] = f"{mid}_{(rec.get('subtype') or 'na')[:4].upper()}"
+        regrouped: dict[str, list[dict]] = {}
+        for rec in group:
+            regrouped.setdefault(rec["module_id"], []).append(rec)
+        for mid2, grp in regrouped.items():
+            if len(grp) == 1:
+                final[mid2] = grp[0]
+                continue
+            log.error(f"[ids] {len(grp)} rows share name, sequence, metric "
+                      f"label and subtype under {mid2}; numbering them by "
+                      f"score so the ids are at least stable")
+            ordered = sorted(grp, key=lambda r: (str(r.get("quantitative_metric")),
+                                                 str(r.get("sequence_aa"))))
+            for i, rec in enumerate(ordered, start=1):
+                rec["module_id"] = f"{mid2}_{i}"
+                final[rec["module_id"]] = rec
+
+    # F8: a sequence one sheet labels both ways is the same situation as a
+    # dual-readout paper, so give those rows a `readout` too and let the
+    # pairing below link them. The contradiction is then recorded rather than
+    # resolved by picking a winner from a sheet that disagrees with itself.
+    contradictory: dict[tuple, set] = {}
+    for rec in final.values():
+        if rec.get("sequence_aa"):
+            contradictory.setdefault((rec.get("source"), rec.get("name"),
+                                      rec["sequence_aa"]), set()).add(rec.get("subtype"))
+    marked = 0
+    for rec in final.values():
+        if rec.get("readout") or not rec.get("sequence_aa"):
+            continue
+        subs = contradictory.get((rec.get("source"), rec.get("name"),
+                                  rec["sequence_aa"]), set())
+        if {"activator", "repressor"} <= subs:
+            rec["readout"] = ("activation" if rec.get("subtype") == "activator"
+                              else "repression")
+            marked += 1
+    if marked:
+        log.info(f"[ids] {marked:,} rows carry a within-source directional "
+                 f"contradiction; `readout` set from their own subtype so the "
+                 f"two calls stay visible and linked")
+
+    # F8: link the arms. Two rows are siblings when the same paper measured the
+    # same sequence under the same name in a different arm.
+    groups: dict[tuple, list[dict]] = {}
+    for rec in final.values():
+        if not rec.get("readout") or not rec.get("sequence_aa"):
+            continue
+        groups.setdefault((rec.get("source_doi"), rec.get("name"),
+                           rec["sequence_aa"]), []).append(rec)
+    paired = 0
+    for group in groups.values():
+        if len({r["readout"] for r in group}) < 2:
+            continue
+        for rec in group:
+            siblings = [r["module_id"] for r in group
+                        if r["module_id"] != rec["module_id"]]
+            rec["paired_module_id"] = ";".join(sorted(siblings))
+            paired += 1
+    log.info(f"[ids] {paired:,} rows linked to a dual-readout sibling")
+    return list(final.values())
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__,
@@ -788,7 +951,7 @@ def main():
     screen = process_screen_data(log)
     log.info(f"Screen EDs: {len(screen)} entries")
 
-    all_records = curated + screen
+    all_records = resolve_ids(curated + screen, log)
     df = pd.DataFrame(all_records)
     out = PROCESSED_DIR / "ed_raw.tsv"
     df.to_csv(out, sep="\t", index=False)

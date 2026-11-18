@@ -69,6 +69,12 @@ CREATE TABLE IF NOT EXISTS modules (
     -- for a span (ZFPM2: 8 claimed, 102-aa span). Consumers building Zn ions
     -- for a fusion must prefer this one.
     dbd_zinc_finger_count   INTEGER,
+    -- F8: which arm of a dual-readout screen this row is, and the sibling row
+    -- measuring the same sequence in the other arm. Mukund 2023 scored every
+    -- domain for activation AND repression, which arrived as two records with
+    -- contradictory `subtype` and nothing linking them.
+    readout                 TEXT,
+    paired_module_id        TEXT,
     target_or_mechanism     TEXT,
     quantitative_metric     REAL,
     quantitative_metric_label TEXT,
@@ -128,6 +134,8 @@ MIGRATIONS = [
     ("dbd_dropped_regions",  "TEXT"),
     ("dbd_dropped_review_flag", "INTEGER"),
     ("dbd_zinc_finger_count", "INTEGER"),
+    ("readout",              "TEXT"),
+    ("paired_module_id",     "TEXT"),
 ]
 
 CREATE_INDEXES = [
@@ -199,6 +207,12 @@ class ModuleLibrary:
         Raises ValueError if any required field is absent.
         """
         inserted, updated = 0, 0
+        # F10: an UPDATE that overwrites a DIFFERENT sequence is data loss, not
+        # an update. `module_id` is not unique across source rows (02_seed_ed.py
+        # built it from screen + name, and 725 ids carried more than one row),
+        # so this silently discarded 730 ED rows. Record them; the caller
+        # decides whether to fail.
+        self.clobbered: list[tuple[str, str, str]] = []
         cur = self.conn.cursor()
 
         # Discover all column names from schema
@@ -222,6 +236,14 @@ class ModuleLibrary:
             # for all 3,248 DBD rows. An update touches what it was given.
             row = {col: rec[col] for col in columns if col in rec}
             cols = list(row.keys())
+            if exists and "sequence_aa" in row:
+                cur.execute("SELECT sequence_aa FROM modules WHERE module_id=?",
+                            (rec["module_id"],))
+                stored = (cur.fetchone() or {"sequence_aa": None})["sequence_aa"]
+                incoming = row["sequence_aa"]
+                if stored and incoming and stored != incoming:
+                    self.clobbered.append((rec["module_id"], str(stored)[:40],
+                                           str(incoming)[:40]))
             if exists:
                 assignments = ", ".join(f"{c}=?" for c in cols)
                 cur.execute(f"UPDATE modules SET {assignments} WHERE module_id=?",
