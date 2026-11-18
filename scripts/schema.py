@@ -213,6 +213,9 @@ class ModuleLibrary:
         # so this silently discarded 730 ED rows. Record them; the caller
         # decides whether to fail.
         self.clobbered: list[tuple[str, str, str]] = []
+        # Rows whose empty sequence was refused rather than written over a
+        # stored one; informational, not a failure.
+        self.blanked: list[str] = []
         cur = self.conn.cursor()
 
         # Discover all column names from schema
@@ -235,15 +238,24 @@ class ModuleLibrary:
             # 04_build_library.py run would silently erase the whole extraction
             # for all 3,248 DBD rows. An update touches what it was given.
             row = {col: rec[col] for col in columns if col in rec}
-            cols = list(row.keys())
             if exists and "sequence_aa" in row:
                 cur.execute("SELECT sequence_aa FROM modules WHERE module_id=?",
                             (rec["module_id"],))
                 stored = (cur.fetchone() or {"sequence_aa": None})["sequence_aa"]
                 incoming = row["sequence_aa"]
-                if stored and incoming and stored != incoming:
+                if stored and not incoming:
+                    # Never replace a stored sequence with nothing. EpiFactors
+                    # ships HSPA1A and HSPA1B twice, once with the 641-aa
+                    # sequence and once without, under one module_id -- so
+                    # which version survived depended on row order, and the
+                    # clobber test below could not see it because the incoming
+                    # value was empty rather than different.
+                    row.pop("sequence_aa")
+                    self.blanked.append(rec["module_id"])
+                elif stored and incoming and stored != incoming:
                     self.clobbered.append((rec["module_id"], str(stored)[:40],
                                            str(incoming)[:40]))
+            cols = list(row.keys())
             if exists:
                 assignments = ", ".join(f"{c}=?" for c in cols)
                 cur.execute(f"UPDATE modules SET {assignments} WHERE module_id=?",

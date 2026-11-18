@@ -118,6 +118,12 @@ def main():
                 "updated": updated,
             })
 
+        if lib.blanked:
+            log.warning(f"{len(lib.blanked)} row(s) carried an empty "
+                        f"sequence_aa for a module_id that already had one; "
+                        f"the stored sequence was kept: "
+                        f"{', '.join(sorted(set(lib.blanked))[:6])}")
+
         if lib.clobbered and not args.allow_duplicate_ids:
             log.error(f"ABORT: {len(lib.clobbered)} source row(s) were "
                       f"overwritten under a colliding module_id. The library "
