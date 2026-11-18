@@ -1,0 +1,251 @@
+# External validation of the extracted DBD spans
+
+**F5 in [`DBD_EXTRACTION_FIXES.md`](DBD_EXTRACTION_FIXES.md) · run 2026-11-18 ·
+script [`scripts/07_validate_dbd_external.py`](../scripts/07_validate_dbd_external.py)**
+
+The three acceptance gates in `06_extract_dbd.py --validate` all re-read the
+same cached UniProt feature table the extraction used, and gate 2's anchors are
+the by-hand spans the script was written to reproduce. So they show the method
+is self-consistent, not that it is right. This report answers that with two
+arms that reach outside the pipeline's inputs.
+
+**It is a distribution, not a pass/fail gate.** Pfam and this extraction
+disagree by design — Pfam matches each C2H2 finger separately, while the
+extraction keeps a finger array contiguous because the inter-finger linkers are
+part of the array — so *precision* below 1 is expected and *recall* is the
+number that has to be high.
+
+---
+
+## Headline
+
+| | result |
+|---|---|
+| Records compared against Pfam | **2,816** of 2,818 extractable (2 accessions failed to fetch) |
+| Recall of the best-matching Pfam DNA-binding domain | **median 1.000**, p25 1.000, min 0.488 |
+| Spans overlapping **no** Pfam DNA-binding domain | **20** — and they are 5 gene families, not noise |
+| Records checked against DNA contacts in a solved complex | **220** across **207** structures |
+| Of those, spans containing **every** DNA-contacting residue | **185 (84%)** |
+| Abstentions (`dbd_extraction='none'`) where Pfam names a DBD | **28** of 262 — recoverable chassis |
+
+**The two arms independently convict the same two gene families.** Pfam says
+EBF1–4 and RBPJ/RBPJL have their DNA-binding domain somewhere the span does not
+cover; the crystal structures of Ebf1 (3MLN) and Rbpj (3IAG) put **0 of 30** and
+**0 of 16** DNA-contacting residues inside the span. Different evidence, same
+verdict, on records that carry `dbd_review_flag = 0`.
+
+---
+
+## Arm 1 — Pfam domain boundaries via InterPro
+
+### Method
+
+Pfam locations per accession from the InterPro REST API, cached in
+`data/raw/interpro/{acc}.json` (2,801 of 2,803 accessions; 2 failed).
+
+Pfam is HMM-based. The independence claim is measurable, so it was measured:
+of the **1,156 `DNA_BIND` features** in the cached UniProt feature tables,
+**1,040 (90%) carry PROSITE-ProRule evidence** (`ECO:0000255|PROSITE-ProRule`),
+29 are by-similarity, 4 cite a PubMed experiment and 50 carry no evidence
+string. So the annotation this extraction follows is overwhelmingly one
+profile-based method, and Pfam is a different one on the same sequence — not an
+independent experiment, but not a copy of the same curation either.
+
+All **513** distinct Pfam family names the fetch returned were classified by
+hand into **98 DNA-binding families (2,575 hits)** and **419 others (2,038
+hits)**. The DNA-binding side is led by Zinc finger C2H2 (788), Homeodomain
+(335), bHLH (162), the nuclear-receptor C4 double treble clef (86), Forkhead
+(82) and HMG box (79); the other side by KRAB box (356), nuclear-receptor
+ligand-binding (90), BTB/POZ (67), SCAN (60), PAS (40) and OAR (27) — which are
+exactly the modules the extraction is built to drop.
+
+Recall is scored against the **single** Pfam DNA-binding domain the span
+overlaps most, not their union: ZSCAN20 carries a Myb/SANT-like domain hundreds
+of residues from its C2H2 array, and scoring against the union would mark a
+correct span as having missed a module it was never meant to contain. Omitted
+DNA-binding domains are counted separately instead.
+
+### Verdicts
+
+| verdict | n |
+|---|---|
+| span overlaps a Pfam DNA-binding domain | 2,302 |
+| no span (`none` / `no_features` / `dispersed`) | 379 |
+| span exists, Pfam names no DNA-binding family anywhere in the protein | 115 |
+| **span overlaps no Pfam DNA-binding domain** | **20** |
+
+### Agreement where the span overlaps a domain (n = 2,302)
+
+| metric | median | p25 | p75 | min |
+|---|---|---|---|---|
+| recall (domain residues inside the span) | **1.000** | 1.000 | 1.000 | 0.488 |
+| precision (span residues in that domain) | 0.770 | 0.565 | 0.802 | 0.021 |
+| Jaccard | 0.768 | 0.565 | 0.800 | 0.021 |
+| start offset (span − domain) | −7 aa | −11 | −6 | −873 |
+| end offset (span − domain) | +7.5 aa | +6 | +11 | −51 |
+
+The ±7 aa halo is `FLANK = 6` plus the boundary pull-back, visible as expected.
+
+| kind | n | recall median | recall ≥0.95 | precision median |
+|---|---|---|---|---|
+| `dna_bind` | 756 | 1.000 | **99%** | 0.792 |
+| `znf_array` | 899 | 1.000 | **99%** | 0.613 |
+| `bipartite` | 211 | 1.000 | **98%** | 0.697 |
+| `domain` | 436 | 1.000 | **93%** | 0.800 |
+
+`znf_array`'s low precision is the predicted legitimate disagreement — the
+array is contiguous by design and Pfam matches only the fingers.
+`domain` is the weakest kind on recall, which is the kind whose spans rest
+entirely on `KEEP_DOMAIN_HINTS` rather than on an annotated `DNA_BIND` feature.
+
+By family, median recall is 1.000 for every one of the 15 largest (zf-C2H2 803,
+Homeobox 363, bHLH 204, TF_bZIP 100, Fork_head 94, HMG 92, ZBTB 74, ETS 52, MYB
+50, THR-like 38, T-box 32, Pou 30, zf-GATA 25, RXR-like 24, E2F 21), except
+zf-GATA at 0.956.
+
+### The 20 spans that overlap no Pfam DNA-binding domain
+
+| records | span is | Pfam says the DBD is |
+|---|---|---|
+| EBF1, EBF2, EBF3, EBF4 (+ mouse) — 8 | the IPT/TIG domain | Transcription factor COE1 DNA-binding domain |
+| RBPJ, RBPJL (+ mouse) — 4 | the IPT/TIG domain | Beta-trefoil DNA-binding domain / LAG1 DNA binding |
+| ZNF280C, ZNF280D (+ mouse) — 4 | a C2H2 stretch | Z280C/D-like C2H2 zinc finger |
+| ZNF618 (+ mouse) — 2 | a C2H2 stretch | Hermes transposase DNA-binding domain |
+| RAG1 (+ mouse) — 2 | 386-465 | Recombination-activation protein 1 DNA-binding domain |
+
+**18 of the 20 carry `dbd_review_flag = 0`.** The EBF and RBPJ cases share a
+cause: `IPT/TIG` is in `KEEP_DOMAIN_HINTS`, and in these proteins it is the
+protein-interaction module, not the DNA-binding one. 12 library records rest on
+an `IPT/TIG` match (of 491 whose span rests on the hint list alone), so that
+hint is the single highest-value thing in this report to revisit.
+
+### The 28 abstentions Pfam disagrees with
+
+Of the 262 `dbd_extraction='none'` records, **28 have a Pfam DNA-binding
+domain** — chassis the method is losing rather than correctly declining:
+
+| Pfam family | n | records |
+|---|---|---|
+| STAT protein, DNA binding domain | 14 | STAT1–6, STAT5A/5B, human + mouse |
+| Zinc-finger of C2H2 type | 5 | ZNF385A/B, Zfp385a, Zmat1, Zmat3 |
+| GC-rich sequence DNA-binding factor-like | 4 | GCFC2, PAXBP1, + mouse |
+| HSF-type DNA-binding | 2 | HSF1, Hsf1 |
+| P53 DNA-binding domain | 2 | TP73, Trp73 |
+| CIZ1-like, C2H2-type zinc finger | 1 | CIZ1 |
+
+The STAT family is the striking one: 14 records, a major TF family, abstained on
+because UniProt annotates no feature the keep rules recognise. TP73 is the same
+story next door to TP53, which extracts fine.
+
+The remaining 111 of the 139 spanless-but-Pfam-positive records are `dispersed`
+— F2 removed their spans on purpose — and the Pfam hits confirm what F2 said:
+RREB1, ZNF236, TRPS1, ZHX3, MGA and HIVEP3 do carry real DNA-binding domains,
+spread across proteins too large to use as chassis.
+
+---
+
+## Arm 2 — DNA contacts in solved complexes
+
+### Method
+
+For each accession, UniProt's own PDB cross-references are read in batches, one
+RCSB GraphQL query per 200 entries returns each entry's DNA chain count and
+resolution, and the best-resolution protein–DNA entry per accession is selected
+— deterministic, so a capped run is reproducible. For the top 220 by resolution
+the mmCIF is downloaded, every protein residue with a heavy atom within
+**4.0 Å** of a DNA heavy atom is collected, and those residues are mapped to
+UniProt numbering through SIFTS. Both author and label numbering are handled:
+SIFTS leaves the author fields null for some entries (1DSZ/RARA), and requiring
+them silently dropped three quarters of the structures in the first run.
+
+### Results
+
+| | n |
+|---|---|
+| records measured | **220** (207 structures) |
+| span contains **every** DNA-contacting residue | **185 (84%)** |
+| partial | 30 |
+| zero coverage | 5 |
+
+| kind | n | mean coverage | full |
+|---|---|---|---|
+| `dna_bind` | 97 | 0.986 | 91/97 |
+| `bipartite` | 46 | 0.959 | 33/46 |
+| `znf_array` | 26 | 0.945 | 21/26 |
+| `domain` | 51 | 0.910 | 40/51 |
+
+**The 30 partial records fail at the boundary, not in the middle.** 93 of the
+97 missed contacts lie within 30 aa of a span edge; the other 4 are NFATC2's
+second contact region at 663-666, 83 residues past a span ending at 580:
+
+| extra flank | missed contacts recovered | partial records completed |
+|---|---|---|
+| +6 aa | 49/97 | 10/30 |
+| +10 aa | 66/97 | 15/30 |
+| **+15 aa** | **80/97** | **24/30** |
+| +20 aa | 92/97 | 28/30 |
+
+Examples: GATA3 (3DFX) misses 348–365 with a span ending at 347; THRB (2NLL)
+misses 188–198 ending at 187; NR5A2 (5L0M) misses 161–173 ending at 160.
+
+**The 5 zero-coverage records split two ways**, and the distinction matters:
+
+| record | structure | reading |
+|---|---|---|
+| Rbpj | 3IAG — *CSL (RBP-Jk) bound to HES-1 nonconsensus site* | **span is wrong** (IPT/TIG, not the DNA-binding NTD/BTD) |
+| Ebf1 | 3MLN — *DNA binding domain of Early B-cell Factor 1 bound to DNA* | **span is wrong** (IPT/TIG) |
+| MBD4 | 4OFA — *thymine glycosylase activity on T:O6-methylG mismatch* | span is the MBD; the structure is of the **glycosylase** domain |
+| MBD1 | 5W9Q — *zinc finger region of MBD1 in complex with CpG DNA* | span is the MBD; the structure is of the **CXXC fingers** |
+| NSD2 | 5VC8 — *WHSC1 PWWP1 domain* | span is the annotated DNA-binding region; the structure is of **PWWP** |
+
+So three of the five are not extraction errors at all: the protein has a second
+DNA-contacting module and the available structure happens to be of that one.
+Only Rbpj and Ebf1 are genuine — the same two families arm 1 convicts.
+
+---
+
+## What this suggests, as tradeoffs rather than changes
+
+1. **Revisit `IPT/TIG` as a keep hint.** 12 records rest on it, and both
+   families where it is testable (EBF, RBPJ) are wrong by two independent
+   measures. The cheapest fix is to stop treating `IPT/TIG` as DNA-binding on
+   its own; the cost is that any protein where it genuinely participates loses
+   its span and falls to `dbd_extraction='none'`.
+2. **28 chassis are recoverable** by adding the six Pfam families above to the
+   keep rules — STAT most of all. The cost is that keep rules keyed on Pfam
+   names need Pfam locations at extraction time, which is a new dependency for
+   `06_extract_dbd.py` (the cache now exists, so it is a small one).
+3. **`FLANK = 6` trims real DNA contacts.** Raising it to 15 completes 24 of the
+   30 partial records; 20 completes 28. The cost is construct length and a
+   greater chance of reaching toward an excluded domain — the existing
+   pull-back already guards the latter, and the former is real for AAV cargo.
+4. **`domain` is the weakest kind** on both arms (93% recall ≥0.95; 40/51 full
+   contact coverage), which is the kind whose spans rest on `KEEP_DOMAIN_HINTS`
+   alone. If review effort is finite, spend it there.
+
+## Limitations
+
+- Pfam is not ground truth. It splits C2H2 arrays, so `znf_array` precision of
+  0.613 is a property of the comparison, not a defect.
+- 220 structures is a biased sample: TFs that crystallise with DNA. The 84%
+  full-coverage figure describes those, not the library.
+- A structure can capture a *different* DNA-binding module of the same protein,
+  as 3 of the 5 zero-coverage cases show. Zero coverage is a prompt to look, not
+  a verdict.
+- Two accessions failed the InterPro fetch and are absent from arm 1.
+- Contacts are computed on the deposited coordinates of one chain mapping, with
+  no symmetry expansion, so a contact made only by a crystallographic neighbour
+  is not counted.
+
+## Reproduce
+
+```bash
+python scripts/07_validate_dbd_external.py --fetch     # ~2,800 cached GETs
+python scripts/07_validate_dbd_external.py --survey    # Pfam family census
+python scripts/07_validate_dbd_external.py --report    # arm 1
+python scripts/07_validate_dbd_external.py --pdb --limit 220   # arm 2
+```
+
+Per-record tables land in `data/processed/dbd_external_validation.tsv` and
+`data/processed/dbd_pdb_contact_validation.tsv` (both gitignored; this report is
+the committed artefact).

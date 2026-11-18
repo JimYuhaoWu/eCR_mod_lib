@@ -22,3 +22,10 @@ data/raw/uniprot/*.tsv
 
 # Timestamped library backups taken before a bulk update.
 library/*.db.bak.*
+
+# External-validation caches written by 07_validate_dbd_external.py: Pfam
+# locations per accession (data/raw/interpro/*.json, already covered by the
+# *.json rule above) and mmCIF coordinates (133 MB for 207 entries). Both are
+# re-fetchable from the accession or the PDB id, and docs/DBD_EXTERNAL_VALIDATION.md
+# carries the results that matter.
+data/raw/pdb/
