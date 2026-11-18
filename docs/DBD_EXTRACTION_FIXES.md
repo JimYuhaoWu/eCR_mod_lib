@@ -458,22 +458,41 @@ them, and F4's and F5's discussion of the `none` cohort treats it as one thing.
 ## F7 — record what was dropped, even when UniProt does not name it
 
 **Repo:** eCR_mod_lib · **File:** `scripts/06_extract_dbd.py`
+**Status: code landed 2026-11-18** (`scripts/06_extract_dbd.py`,
+`scripts/schema.py`, and the passthrough in `eCR_predictor/ecr_predictor/output.py`).
+The columns reach the library only on the next `06` → `04` pass, step 3 of the
+sequencing below. Until then `dbd_dropped_regions` does not exist in the
+deployed DB, and the `MIGRATIONS` entry is what adds it there. `06:NNN` line
+references in this entry are to the file as it stood **before** the fix; the
+additions shifted them.
 
 Found 2026-11-16 while checking Nanog for the manuscript's step 3. `DBD_MU_NANOG`
 (Q80Z64) extracts to `dna_bind` **90-161 (72 aa)** of 305, `dbd_review_flag = 0`,
 `dbd_excluded_domains = NaN`. The mouse sequence has tryptophans at 143, 154,
 159, then **198, 203, 208, 213, 218, 223, 228, 233, 238, 243** — ten at exact
 5-residue spacing, i.e. the **tryptophan-repeat (WR) domain**, through which
-Nanog dimerizes. It lies entirely outside the kept span. UniProt names no
-feature there, so the method discarded it, recorded nothing in
-`dbd_excluded_domains`, and did not flag the record.
+Nanog dimerizes. It lies entirely outside the kept span, and the pipeline
+recorded nothing in `dbd_excluded_domains` and did not flag the record.
 
-Mechanism confirmed in code: `dbd_excluded_domains` is written only from
-`dropped` (`06:364`), which is populated solely from annotated `ZN_FING` and
-`DOMAIN` features (`06:281-292`). `REGION` features never enter it and
-unannotated stretches cannot. Corroborating: **199 of the 287 flagged records
-have a null `dbd_excluded_domains`**, so even a flag's reason is often
-unrecorded.
+**[corrected 2026-11-18] UniProt does name it.** The first draft of this entry
+said no feature was annotated there. Fetching Q80Z64's feature table shows
+otherwise:
+
+```
+REGION 198..247; /note="10 X repeats starting with a Trp in each unit"
+REGION 198..247; /note="Sufficient for transactivation activity"
+REGION 248..305; /note="Sufficient for strong transactivation activity"
+```
+
+So this was not missing knowledge, it was a **discarded annotation** — which
+makes the defect worse, and the fix cheaper. Mechanism in code:
+`dbd_excluded_domains` is written only from `dropped` (`06:364`), populated
+solely from annotated `ZN_FING` and `DOMAIN` features (`06:281-292`). `REGION`
+features enter the extraction at exactly one place — a hazard-hint test for
+regions lying *inside* the kept span (`06:333-335`) — and are otherwise read
+and thrown away. Everything outside the span, named or not, goes unrecorded.
+Corroborating: **199 of the 287 flagged records have a null
+`dbd_excluded_domains`**, so even a flag's reason is often unrecorded.
 
 **[rev] Two qualifications.** (i) The total unrecorded drop is **233 of 305
 residues (76%)**, not 144 — the extraction also drops 1-89, which the first
@@ -492,12 +511,45 @@ UniProt feature. F1 would not catch Nanog, because its flag is 0.
 - Record every residue range outside the kept span in a new
   `dbd_dropped_regions` column — named features and unannotated gaps alike,
   as `start-end:label` with `label = unannotated` where UniProt is silent.
-- Flag when an unannotated dropped region is large (threshold to pick from the
-  distribution) — in a **separate `dbd_dropped_review_flag` column**, never in
+  Where UniProt gives a residue two annotations they are joined with ` + `, so
+  Nanog's 198-247 reads as both the Trp repeat and a transactivation region
+  rather than one hiding the other.
+- Flag in a **separate `dbd_dropped_review_flag` column**, never in
   `dbd_review_flag`. **[decided 2026-11-17]** See the F7/F1 resolution under
   Sequencing.
-- Add a **low-complexity / repeat screen** over dropped regions, so motifs like
-  a W-every-5 repeat are surfaced rather than needing a manual read.
+- **[corrected 2026-11-18] Drop size cannot be the detector.** This entry said
+  to flag "when an unannotated dropped region is large (threshold to pick from
+  the distribution)". The distribution rules that out. Over the 2,556 DBD
+  records with a span and a sequence, the dropped fraction runs p25 **45.3%**,
+  p50 **70.5%**, p75 **80.1%** — Nanog's 76.4% sits between the median and p75,
+  so it is a *typical* record, not an outlier. A threshold low enough to catch
+  it flags 1,306 records at ≥70% and 1,827 at ≥50% (898 and 1,266 of them with
+  no `dbd_excluded_domains`). This is not a tuning problem: a TF's DBD is
+  *supposed* to be a small fraction of the protein, so drop size measures "is
+  this a normal transcription factor", not "was something essential lost".
+  Size is still recorded, as the span and the regions; it just cannot gate.
+- **What the flag is instead.** Two tests, both on dropped regions only:
+  (i) the region's annotation reads as **self-association** —
+  `SELF_ASSOCIATION_HINTS` = dimeriz / oligomeriz / trimeriz / tetrameriz /
+  self-associ / coiled coil — or as a **tandem repeat ≥20 aa**
+  (`MIN_REPEAT_REGION_AA`, which excludes compositional annotations such as
+  MESP1's 4-residue "2 X 2 AA tandem repeats of G-Q"); or
+  (ii) for a stretch UniProt does **not** name, a **repeat screen** finds a
+  periodic single-residue ladder — ≥6 rungs at a constant spacing k ∈ 3..8,
+  tolerating one skipped rung (gap 2k, which is what human Nanog's W ladder
+  has: 5,5,**10**,5,5,5,5), with the residue capped at 8% of the segment so
+  poly-Q and poly-G composition does not swamp it.
+  Activation and interaction annotations are deliberately **not** flagged:
+  removing those is the purpose of the extraction.
+  **Measured against live UniProt feature tables for all 2,818 extractable DBD
+  records: 97 flagged** — 63 by a self-association annotation (55 of those
+  naming dimerization), 31 by a named tandem repeat ≥20 aa (the Nanog family
+  among them), and 3 by the unnamed-ladder screen alone. Reviewable by hand,
+  which a 1,300-record size threshold would not be.
+- **A second case the same flag catches: p53.** `DBD_HO_TP53` extracts 96-298
+  of 393 and drops **325-356, annotated `Oligomerization`** — the
+  tetramerization domain p53 binds DNA through. Nanog is not an isolated
+  example of a dropped assembly module.
 - No keep-rule change: whether WR belongs in the construct is a biology
   question, and step 3 of the manuscript is designed to answer it. The fix is
   that the pipeline must **say** it dropped it.
@@ -557,11 +609,15 @@ more, noted in step 2.
    paper reports.
 
 **[decided 2026-11-17] Interaction between F7 and F1 — resolved.** F7 flags
-large unannotated drops. *If* it reused `dbd_review_flag`, `DBD_MU_NANOG` would
-become flag 1 — its unannotated drop is 233 aa / 76% of the protein, past any
-plausible threshold — and F1 would skip it by default. The manuscript's step-3
+dropped self-association and repeat modules. *If* it reused `dbd_review_flag`,
+`DBD_MU_NANOG` would become flag 1 — its dropped 198-247 is an annotated
+tryptophan repeat — and F1 would skip it by default. The manuscript's step-3
 Nanog chassis would disappear from design runs unless `--allow-flagged-dbd` were
-passed, directly against F7's "no keep-rule change".
+passed, directly against F7's "no keep-rule change". (**[corrected 2026-11-18]**
+This clause previously justified the flag by the drop being "233 aa / 76% of the
+protein, past any plausible threshold". That reasoning was wrong — 76% is near
+the median drop — and is replaced by the detector described under F7. The
+decision it supports is unaffected: the flag is in its own column either way.)
 
 **Decision: F7 writes a separate `dbd_dropped_review_flag`, and F1 does not gate
 on it.** Rationale: over-inclusion (a kept span containing an effector domain)

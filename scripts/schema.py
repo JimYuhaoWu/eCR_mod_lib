@@ -58,6 +58,12 @@ CREATE TABLE IF NOT EXISTS modules (
     dbd_extraction          TEXT,
     dbd_excluded_domains    TEXT,
     dbd_review_flag         INTEGER,
+    -- F7: every residue outside the kept span, as 'start-end:label'; the flag
+    -- is set when a dropped region reads as a self-association or repeat
+    -- module. Separate from dbd_review_flag, which reports the opposite
+    -- failure (an excluded domain INSIDE the span).
+    dbd_dropped_regions     TEXT,
+    dbd_dropped_review_flag INTEGER,
     target_or_mechanism     TEXT,
     quantitative_metric     REAL,
     quantitative_metric_label TEXT,
@@ -114,6 +120,8 @@ MIGRATIONS = [
     ("dbd_extraction",       "TEXT"),
     ("dbd_excluded_domains", "TEXT"),
     ("dbd_review_flag",      "INTEGER"),
+    ("dbd_dropped_regions",  "TEXT"),
+    ("dbd_dropped_review_flag", "INTEGER"),
 ]
 
 CREATE_INDEXES = [

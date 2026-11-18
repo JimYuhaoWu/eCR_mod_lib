@@ -50,6 +50,12 @@ Rules that matter
    full-length record.
 4. Additive. `sequence_aa` is not touched; the original is also copied to
    `sequence_full_aa` so consumers can migrate deliberately.
+5. Say what was dropped. Every residue outside the kept span is recorded in
+   `dbd_dropped_regions`, labelled from the feature table where UniProt names
+   it, and `dbd_dropped_review_flag` is set when the dropped material looks
+   like a self-association or repeat module. No keep rule changes: whether such
+   a module belongs in a construct is a biology question, and the pipeline's
+   job is only to stop dropping it silently.
 
 Run
 ---
@@ -87,6 +93,36 @@ DB_PATH = ROOT / "library" / "module_library.db"
 FLANK = 6
 BATCH = 100          # accessions per UniProt search request
 MIN_SPAN_COVERAGE = 0.5   # below this, the span is mostly not DNA-binding feature
+
+# Dropped-region annotations that read as self-association. The extraction is
+# meant to remove effector function, not the module through which a factor
+# assembles on DNA: Nanog dimerizes through the tryptophan repeat UniProt
+# annotates at 198-247, which lies outside its 72-aa kept span, and p53
+# tetramerizes through 325-356, likewise dropped. Activation and interaction
+# regions are NOT on this list -- removing those is the point of the
+# extraction, and flagging them would flag most of the library.
+SELF_ASSOCIATION_HINTS = ("dimeriz", "oligomeriz", "trimeriz", "tetrameriz",
+                          "self-associ", "self associ", "coiled coil")
+# A region UniProt describes as a tandem repeat counts only once it is long
+# enough to be a module: 'repeat' also names compositional annotations such as
+# MESP1's 4-residue "2 X 2 AA tandem repeats of G-Q", which is not a structure
+# anyone would reconstitute. Nanog's tryptophan repeat is 45-50 aa.
+REPEAT_REGION_HINT = "repeat"
+MIN_REPEAT_REGION_AA = 20
+
+# Repeat screen for dropped stretches UniProt does not name, so a periodic
+# module is surfaced without a manual read. A ladder is MIN_REPEAT_RUNGS
+# occurrences of one residue at constant spacing, tolerating one skipped rung
+# (gap 2k) because human Nanog's tryptophan ladder has gaps 5,5,10,5,5,5,5.
+# MAX_REPEAT_RESIDUE_FRACTION is what keeps the screen from being swamped by
+# composition: without it, poly-Q and poly-G stretches at spacing 2 dominate.
+# Measured against live UniProt feature tables for all 2,818 extractable DBD
+# records: this screen accounts for 3 of the 97 dbd_dropped_review_flag hits --
+# it is the net for stretches no annotation covers, not the main detector. The
+# Nanog family is caught by its annotated repeat region instead.
+MIN_REPEAT_RUNGS = 6
+REPEAT_SPACINGS = range(3, 9)
+MAX_REPEAT_RESIDUE_FRACTION = 0.08
 
 # Feature-table keys -> the TSV columns they arrive in.
 FEATURE_COLUMNS = ["Zinc finger", "DNA binding", "Domain [FT]", "Region"]
@@ -258,6 +294,92 @@ def _merge(spans: list[tuple[int, int]]) -> list[tuple[int, int]]:
     return out
 
 
+def _clean_label(note: str) -> str:
+    """One region label, safe to join into a ';'-delimited 'start-end:label' field."""
+    lab = re.sub(r"\s+", " ", (note or "").replace(";", ",").replace(":", ",")).strip()
+    return lab or "unnamed"
+
+
+def _repeat_motif(segment: str) -> str | None:
+    """'W-x5-n10' when `segment` carries a periodic single-residue ladder, else None."""
+    n = len(segment)
+    if n < MIN_REPEAT_RUNGS:
+        return None
+    cap = n * MAX_REPEAT_RESIDUE_FRACTION
+    for aa in sorted(set(segment)):
+        pos = [i for i, c in enumerate(segment) if c == aa]
+        if len(pos) < MIN_REPEAT_RUNGS or len(pos) > cap:
+            continue
+        for k in REPEAT_SPACINGS:
+            best = run = 1
+            for p, q in zip(pos, pos[1:]):
+                if q - p in (k, 2 * k):
+                    run += 1
+                    best = max(best, run)
+                else:
+                    run = 1
+            if best >= MIN_REPEAT_RUNGS:
+                return f"{aa}-x{k}-n{best}"
+    return None
+
+
+def _labelled_gaps(seq: str, lo: int, hi: int,
+                   feats: dict) -> list[tuple[int, int, str]]:
+    """Every residue OUTSIDE the kept span [lo, hi], split into labelled runs.
+
+    Annotated features supply the label wherever they cover a dropped residue --
+    REGION included, which `dbd_excluded_domains` never records, and which is
+    how Nanog's annotated tryptophan repeat came to be dropped silently. Runs no
+    feature covers are labelled 'unannotated'. Where UniProt gives a residue two
+    annotations (Nanog's 198-247 is both the Trp repeat and a transactivation
+    region) both are kept, joined with ' + ', so neither label can hide behind
+    the other."""
+    named: list[tuple[int, int, str]] = []
+    for key in ("ZN_FING", "DNA_BIND", "DOMAIN", "REGION"):
+        for s, e, note in feats.get(key, []):
+            named.append((s, e, _clean_label(note)))
+
+    out: list[tuple[int, int, str]] = []
+    for a, b in ((1, lo - 1), (hi + 1, len(seq))):
+        if b < a:
+            continue
+        marks: list[frozenset[str]] = [frozenset()] * (b - a + 1)
+        for s, e, lab in named:
+            for i in range(max(s, a), min(e, b) + 1):
+                marks[i - a] = marks[i - a] | {lab}
+        start = a
+        for i in range(1, len(marks) + 1):
+            if i == len(marks) or marks[i] != marks[i - 1]:
+                out.append((start, a + i - 1,
+                            " + ".join(sorted(marks[i - 1])) or "unannotated"))
+                start = a + i
+    return out
+
+
+def _dropped(seq: str, lo: int, hi: int, feats: dict) -> tuple[list[str], list[str]]:
+    """(every dropped region as 'start-end:label', those that need review).
+
+    A named region needs review when its annotation reads as self-association
+    (SELF_ASSOCIATION_HINTS), or as a tandem repeat at least
+    MIN_REPEAT_REGION_AA long; an unnamed one when the repeat screen finds a
+    ladder in it."""
+    regions, flagged = [], []
+    for s, e, lab in _labelled_gaps(seq, lo, hi, feats):
+        if lab == "unannotated":
+            motif = _repeat_motif(seq[s - 1:e])
+            if motif:
+                lab = f"unannotated+repeat({motif})"
+        entry = f"{s}-{e}:{lab}"
+        low = lab.lower()
+        if ("+repeat(" in lab
+                or any(h in low for h in SELF_ASSOCIATION_HINTS)
+                or (REPEAT_REGION_HINT in low
+                    and e - s + 1 >= MIN_REPEAT_REGION_AA)):
+            flagged.append(entry)
+        regions.append(entry)
+    return regions, flagged
+
+
 def classify_domain(note: str) -> str:
     """'keep' | 'exclude' | 'other' for a DOMAIN description.
 
@@ -293,9 +415,12 @@ def extract_one(seq: str, feats: dict) -> dict:
 
     spans = zn + dna + keep_dom
     if not spans:
+        # No kept span, so the extraction dropped nothing: fuse.py falls back to
+        # the full-length record, which is F1's problem, not F7's.
         return {"dbd_extraction": "none", "dbd_start": None, "dbd_end": None,
                 "dbd_sequence_aa": None, "dbd_length_aa": None,
                 "dbd_excluded_domains": None, "dbd_review_flag": 0,
+                "dbd_dropped_regions": None, "dbd_dropped_review_flag": 0,
                 "n_znf": len(zn)}
 
     first, last = min(s for s, _ in spans), max(e for _, e in spans)
@@ -321,6 +446,7 @@ def extract_one(seq: str, feats: dict) -> dict:
         return {"dbd_extraction": "none", "dbd_start": None, "dbd_end": None,
                 "dbd_sequence_aa": None, "dbd_length_aa": None,
                 "dbd_excluded_domains": None, "dbd_review_flag": 1,
+                "dbd_dropped_regions": None, "dbd_dropped_review_flag": 0,
                 "n_znf": len(zn), "_inside": ["coordinates past sequence end"]}
 
     # Rule 2: a dropped feature the span carries is a conflict. The test is
@@ -355,6 +481,11 @@ def extract_one(seq: str, feats: dict) -> dict:
     else:
         kind = "domain"
 
+    # F7: what fell outside the span, named or not. `dbd_excluded_domains` above
+    # records only annotated ZN_FING and DOMAIN features, so an annotated REGION
+    # -- Nanog's tryptophan repeat -- was dropped without appearing anywhere.
+    regions, dropped_flagged = _dropped(seq, lo, hi, feats)
+
     return {
         "dbd_extraction": kind,
         "dbd_start": lo,
@@ -363,8 +494,11 @@ def extract_one(seq: str, feats: dict) -> dict:
         "dbd_length_aa": len(sub),
         "dbd_excluded_domains": ";".join(n for n, _, _ in dropped) or None,
         "dbd_review_flag": 1 if inside else 0,
+        "dbd_dropped_regions": ";".join(regions) or None,
+        "dbd_dropped_review_flag": 1 if dropped_flagged else 0,
         "n_znf": len(zn),
         "_inside": inside,
+        "_dropped_flagged": dropped_flagged,
     }
 
 
@@ -584,6 +718,7 @@ def main() -> None:
             res = {"dbd_extraction": "none", "dbd_start": None, "dbd_end": None,
                    "dbd_sequence_aa": None, "dbd_length_aa": None,
                    "dbd_excluded_domains": None, "dbd_review_flag": 0,
+                   "dbd_dropped_regions": None, "dbd_dropped_review_flag": 0,
                    "n_znf": 0, "_inside": []}
         else:
             res = extract_one(seq, parse_features(line))
@@ -595,6 +730,7 @@ def main() -> None:
             seq, res["dbd_start"], res["dbd_end"], res["dbd_sequence_aa"],
             res["dbd_length_aa"], res["dbd_extraction"],
             res["dbd_excluded_domains"], res["dbd_review_flag"],
+            res["dbd_dropped_regions"], res["dbd_dropped_review_flag"],
             datetime.now(timezone.utc).isoformat(timespec="seconds"),
             r["module_id"],
         ))
@@ -610,6 +746,9 @@ def main() -> None:
             "excluded_domains": res["dbd_excluded_domains"],
             "review_flag": res["dbd_review_flag"],
             "inside_kept_span": ";".join(res.get("_inside", [])) or None,
+            "dropped_regions": res["dbd_dropped_regions"],
+            "dropped_review_flag": res["dbd_dropped_review_flag"],
+            "dropped_needs_review": ";".join(res.get("_dropped_flagged", [])) or None,
         })
 
     log.info(f"[extract] by kind: {dict(kinds)}")
@@ -620,6 +759,10 @@ def main() -> None:
     flagged = sum(1 for x in report if x["review_flag"])
     log.info(f"[extract] {flagged:,} records need review "
              f"(an excluded domain or effector region lies inside the kept span)")
+    dropped_flagged = sum(1 for x in report if x["dropped_review_flag"])
+    log.info(f"[extract] {dropped_flagged:,} records dropped a self-association "
+             f"or repeat module OUTSIDE the kept span (dbd_dropped_review_flag; "
+             f"under-inclusion, a different failure class from the above)")
 
     import pandas as pd
     out = PROCESSED_DIR / "dbd_extraction_report.tsv"
@@ -635,8 +778,9 @@ def main() -> None:
             cur.executemany(
                 "UPDATE modules SET sequence_full_aa=?, dbd_start=?, dbd_end=?, "
                 "dbd_sequence_aa=?, dbd_length_aa=?, dbd_extraction=?, "
-                "dbd_excluded_domains=?, dbd_review_flag=?, date_modified=? "
-                "WHERE module_id=?", updates)
+                "dbd_excluded_domains=?, dbd_review_flag=?, "
+                "dbd_dropped_regions=?, dbd_dropped_review_flag=?, "
+                "date_modified=? WHERE module_id=?", updates)
         lib.insert_provenance({
             "run_id": str(uuid.uuid4()),
             "script": "06_extract_dbd.py",
@@ -647,7 +791,8 @@ def main() -> None:
             "file_path": str(out),
             "records_updated": len(updates),
             "notes": (f"DBD span extraction, FLANK={FLANK}; kinds={dict(kinds)}; "
-                      f"{flagged} flagged for review"),
+                      f"{flagged} flagged for review; {dropped_flagged} flagged "
+                      f"for a dropped repeat or self-association module"),
         })
     log.info(f"[extract] updated {len(updates):,} records in {args.db}")
     log.info("Next: python scripts/06_extract_dbd.py --validate")
