@@ -13,12 +13,12 @@ A curated **module library** of DNA-Binding Domains (DBDs), Effector Domains (ED
 and Chromatin Remodelers (CRs) for engineered transcription factor design, supporting
 MEF→iPSC reprogramming research. GitHub: https://github.com/JimYuhaoWu/eCR_mod_lib
 
-## Current state (~10,800 records, last rebuilt 2026-05-30)
+## Current state (11,486 records, last rebuilt 2026-11-18)
 
 | Type | Count | Key sources |
 |---|---|---|
 | DBD | ~3,250 | AnimalTFDB v4 (human + mouse), UniProt sequences + zinc-finger counts, JASPAR motifs |
-| ED | 6,973 | 11 sources — see SCREEN_FILES in scripts/02_seed_ed.py. `02` writes 7,703; 730 rows are overwritten by `module_id` collision (F10, open) |
+| ED | 7,701 | 11 sources — see SCREEN_FILES in scripts/02_seed_ed.py. `02` writes 7,701 and all of them reach the library since F10; colliding ids carry a content digest |
 | CR | ~540 | EpiFactors v2.0 + curated YAML |
 
 ## Environment & installation
@@ -116,7 +116,7 @@ are tracked in `literature/papers.yaml`.
 
 ### 2026-05 literature cycle — complete
 All 17 candidates reviewed. One paper integrated:
-- **Mukund 2023** (10.1016/j.cels.2023.07.001): **55 rows loaded per readout (110), 104 in the library.** The dual-readout screen is ingested through two SCREEN_FILES entries, so each domain gets one `activator` record (Avg Act) and one `repressor` record (Avg ReprD13) with contradictory `subtype` and `chromatin_state_effect` (F8); 6 of the 110 are then overwritten by `module_id` collision (F10). `exclude_labels_from` filters the 4,113 HiTEff duplicates automatically. ✓ integrated 2026-05-30; representation still to be decided, F8 in docs/DBD_EXTRACTION_FIXES.md.
+- **Mukund 2023** (10.1016/j.cels.2023.07.001): **55 rows per readout, all 110 in the library.** The dual-readout screen is ingested through two SCREEN_FILES entries, so each domain gets one `activator` record (Avg Act) and one `repressor` record (Avg ReprD13). Since F8 each carries `readout` (activation/repression) and `paired_module_id` pointing at its sibling, so the opposite `subtype` reads as two measurements rather than a contradiction. `exclude_labels_from` filters the 4,113 HiTEff duplicates automatically. ✓ integrated 2026-05-30.
 
 ### zinc_finger_count column — needs a rebuild to populate
 `scripts/01_fetch_dbd.py` now fetches a UniProt-annotated zinc-finger count

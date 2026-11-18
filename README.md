@@ -39,20 +39,21 @@ raw sources or integrate new data.
 
 ## Current library size
 
-**10,758 records** — last updated 2026-05-30 · full rebuild pending on server
+**11,486 records** — last rebuilt on the server 2026-11-18
 
-| Type | Approx. count | In the library | Written by the seed scripts |
-|---|---|---|---|
-| DBD | ~3,250 | 3,248 | 3,248 |
-| ED | ~6,970 | 6,973 | 7,703 |
-| CR | ~540 | 537 | 539 |
-| **total** | **~10,760** | **10,758** | **11,490** |
+| Type | In the library | Written by the seed scripts |
+|---|---|---|
+| DBD | 3,248 | 3,248 |
+| ED | 7,701 | 7,701 |
+| CR | 537 | 539 |
+| **total** | **11,486** | **11,488** |
 
-The third column is what `01`/`02`/`03` write to `data/processed/*_raw.tsv`;
-the second is what survives `04`. The 732-row difference is **not** a filter —
-`module_id` is not unique, so `insert_or_replace` overwrites colliding rows,
-and 713 of the lost ED rows carry a sequence the survivor does not. See F10 in
-`docs/DBD_EXTRACTION_FIXES.md`; it is not fixed yet.
+The ED columns agreed only after F10 (2026-11-18): `module_id` was not unique,
+so `04`'s upsert silently overwrote 730 colliding rows. Colliding ids now carry
+a content digest, the build aborts if a row would still overwrite a different
+sequence, and the ED count went 6,973 → **7,701**. The remaining 2-row gap is
+CR: EpiFactors ships `HSPA1A` and `HSPA1B` twice under one id each, and the
+upsert keeps the row that has a sequence.
 
 | Validation level | Meaning |
 |---|---|
@@ -61,8 +62,8 @@ and 713 of the lost ED rows carry a sequence the survivor does not. See F10 in
 | `motif-only` | PWM/motif available (JASPAR); no direct binding evidence |
 | `predicted` | Computational prediction only |
 
-Counts in the snapshot: `screen-validated` 6,167, `predicted` 2,603,
-`motif-only` 1,177, `ChIP-validated` 811. A fifth level,
+Counts in the snapshot: `screen-validated` 6,895, `predicted` 1,985,
+`motif-only` 1,795, `ChIP-validated` 811. A fifth level,
 `structurally-resolved`, is still accepted by the schema CHECK but used by
 **zero** records and is no longer offered by `05_validate.py`; see F6.3 in
 `docs/DBD_EXTRACTION_FIXES.md` for why removing it from the CHECK needs a
@@ -223,12 +224,12 @@ python scripts/04_build_library.py --rebuild
 | [DelRosso et al. 2023](https://doi.org/10.1038/s41586-023-05906-y) | Activation + Repression Domains sheets | screen-validated | 10.1038/s41586-023-05906-y |
 | [Tycko et al. 2020](https://doi.org/10.1016/j.cell.2020.11.024) | NucAct + NucRepr Pfam-domain screens | screen-validated | 10.1016/j.cell.2020.11.024 |
 | [Compendium 2021](https://doi.org/10.1016/j.molcel.2021.11.007) | Table S2, Activity H+M (404 AD + 324 RD) | ChIP-validated | 10.1016/j.molcel.2021.11.007 |
-| [Staller et al. 2022](https://doi.org/10.1016/j.cels.2022.01.002) | 50 predicted novel ADs (Z≥0.5) + 5 WT domains — all 5 are loaded, but the `name` parses as the literal string `none` for every one, so they share a `module_id` and **only 1 survives the upsert** (F8b + F10) | screen-validated | 10.1016/j.cels.2022.01.002 |
+| [Staller et al. 2022](https://doi.org/10.1016/j.cels.2022.01.002) | 50 predicted novel ADs (Z≥0.5) + 5 WT domains — **all 5 now in the library.** The `name` parses as the literal string `none` for every one, so they shared a `module_id` and 4 were overwritten until F10 gave each a content digest (F8b, closed) | screen-validated | 10.1016/j.cels.2022.01.002 |
 | [Tycko et al. 2025](https://doi.org/10.1038/s41587-024-02442-6) | ST3 CD2 ADs (38) + ST3 CD43 RDs (1,223); compact effectors, multi-context | screen-validated | 10.1038/s41587-024-02442-6 |
-| [Ludwig et al. 2023](https://doi.org/10.1016/j.cels.2023.05.008) | Viral EDs: vTR (195) + CoV (135) + HHV (268) = 598 loaded, **582 in the library** — the 16 lost are exact duplicate rows (F10). `organism` is `viral` as of the 2026-11-18 rebuild; it was `Homo sapiens` before (F6.2) | screen-validated | 10.1016/j.cels.2023.05.008 |
+| [Ludwig et al. 2023](https://doi.org/10.1016/j.cels.2023.05.008) | Viral EDs: vTR (195) + CoV (135) + HHV (268) = 598 loaded, **596 in the library** (2 byte-identical rows collapse). 28 rows are the same tile scored both ways in one sheet; they are kept as linked pairs with a `readout` each rather than collapsed (F8/F10). `organism` is `viral` since 2026-11-18 (F6.2) | screen-validated | 10.1016/j.cels.2023.05.008 |
 | [Kristof et al. 2025](https://doi.org/10.1186/s13059-025-03640-4) | 81 engineered CRISPRi repressor domain constructs | ChIP-validated | 10.1186/s13059-025-03640-4 |
 | [Valbuena, Nigam, Tycko et al. 2024](https://doi.org/10.1101/2024.09.21.614253) *(preprint)* | 51 WT repressor domains from DMS study; HT-recruit scores | screen-validated | 10.1101/2024.09.21.614253 |
-| [Mukund et al. 2023](https://doi.org/10.1016/j.cels.2023.07.001) | 55 non-HiTEff short nuclear domains per readout, ingested twice (110 rows) — one record for the activation readout, one for the repression readout, so every domain carries both an `activator` and a `repressor` record with opposite labels (F8). **104 reach the library**; 6 are overwritten by `module_id` collision (F10) | screen-validated | 10.1016/j.cels.2023.07.001 |
+| [Mukund et al. 2023](https://doi.org/10.1016/j.cels.2023.07.001) | 55 non-HiTEff short nuclear domains per readout, ingested twice (**110 rows, all in the library** since F10) — one record per readout, linked by `paired_module_id`, with `readout` saying which arm each is (F8) | screen-validated | 10.1016/j.cels.2023.07.001 |
 
 ### CR
 
