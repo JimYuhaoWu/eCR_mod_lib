@@ -305,6 +305,17 @@ Fix before anything is quoted into a methods table.
 
 **Repo:** eCR_mod_lib · **New:** `scripts/07_validate_dbd_external.py`,
 report in `docs/`
+**Status: run 2026-11-18 — [`DBD_EXTERNAL_VALIDATION.md`](DBD_EXTERNAL_VALIDATION.md).**
+Both arms done. Recall of the best-matching Pfam DNA-binding domain is median
+1.000 over 2,816 records; 185 of 220 records checked against a solved
+protein-DNA complex contain **every** DNA-contacting residue. Three findings
+the internal gates could not reach: **20 spans overlap no Pfam DNA-binding
+domain** (EBF1-4 and RBPJ/RBPJL keep the IPT/TIG domain instead of the real
+DBD, and the crystal structures of Ebf1 and Rbpj independently put 0 contacts
+inside those spans); **28 of the 262 abstentions have a Pfam DNA-binding
+domain**, 14 of them the STAT family; and `FLANK = 6` trims real DNA contacts,
+with 15 aa completing 24 of the 30 partially-covered records. None of this is
+fixed here — see the report's closing section for the tradeoffs.
 
 **[rev] Narrowed.** The first draft said "all three current gates are
 self-consistency checks" and that the validation "is circular". Only gate 2 is
@@ -482,6 +493,66 @@ survived has a garbage name. The 50 `Staller_2022_predictions` rows are fine
 
 ---
 
+### F8 — options, measured 2026-11-18
+
+The contradictions are not one defect. Measured on the regenerated
+`ed_raw.tsv`, **91 sequences carry both an `activator` and a `repressor`
+label** (the earlier figure of 68 was from the pre-rebuild snapshot), and they
+decompose into three causes that need different answers:
+
+| cause | n sequences | what it is |
+|---|---|---|
+| dual readout of one domain in one screen | 55 Mukund + 14 DelRosso + 3 HiTEff | two measurements, not a contradiction |
+| same sequence in two sheets of one paper | 5 (Ludwig HHV + vTR) | duplicate ingest |
+| same sequence twice in ONE sheet, opposite `Effect` | 10 (vTR 6, HHV 4) | the source itself disagrees |
+
+Mukund is the clean case: 110 rows, 52 names, and **50 of the 52 names carry a
+single sequence across both readouts** — `Avg Act` +0.593 and `Avg ReprD13`
+−0.268 for the same 80 aa.
+
+**One fact that bounds how much this matters.** `fuse.py`'s `_load_eds` keys by
+`name` and keeps one entry per *distinct sequence* (F8a), so a Mukund pair —
+same name, same sequence — already collapses to **one** candidate before any
+design run. The predictor never sees the contradiction. This is therefore a
+library-integrity decision about what the records claim, not a change to design
+behaviour.
+
+**Option A — keep two records, add `readout` and `paired_module_id`.**
+One new TEXT column naming the assay arm (`activation`, `repression`,
+`pEF`, `PGK`), one pointing at the sibling. `subtype` keeps its present meaning:
+the direction measured *in that arm*. Nothing is lost, the pairing becomes
+explicit, and the same `readout` column is what F10 needs for DelRosso's two
+promoters. Cost: 2 DDL lines + 2 MIGRATIONS entries, and `02_seed_ed.py` gains
+a `readout` key per SCREEN_FILES entry. Row counts do not change, so no
+consumer breaks.
+
+**Option B — one record per sequence carrying both scores.**
+`activation_score` and `repression_score` columns, `subtype = 'bifunctional'`
+where both are significant. This is what the dual-readout assay actually
+measured, and it is the shape a reviewer would expect. Cost: it breaks the
+library's one-metric-per-row convention (`quantitative_metric` +
+`quantitative_metric_label`), needs a significance rule nobody has defined, and
+halves the Mukund row count — so `load(type="ED")` returns fewer rows than
+today and the ED total moves again.
+
+**Option C — collapse to the stronger readout** (larger |score|). Cheapest, and
+discards half of a dual-readout experiment. Not recommended: the pair *is* the
+result for a domain that both activates and represses depending on context.
+
+**Option D — leave the records and fix only the vocabulary**, i.e. set
+`chromatin_state_effect` to something that does not assert a direction for
+dual-readout rows. Cheapest honest option; leaves the pairing implicit.
+
+**Recommended: A, plus a separate rule for the 15 source-level cases.**
+A is minimal, loses nothing, and pays for itself twice because F10 needs the
+same column. The 5 Ludwig cross-sheet duplicates should be deduplicated at
+ingest. The 10 within-sheet contradictions should **not** be resolved by
+picking a winner from a sheet that contradicts itself — set
+`subtype = 'ambiguous'`, keep both rows and both scores, and let a design run
+exclude them explicitly if it wants to.
+
+---
+
 ## F9 — **[rev2 new]** `dbd_extraction = 'none'` conflates two different causes
 
 **Repo:** eCR_mod_lib · **File:** `scripts/06_extract_dbd.py`
@@ -570,6 +641,74 @@ is *source count vs library count*, and both belong in the README.
   changes `module_id` for those rows, which means the existing collapsed rows
   become orphans — this needs a deliberate table rebuild, not a migration, and
   should not ride on an ordinary `04` pass.
+
+---
+
+### F10 — options, measured 2026-11-18
+
+Two measurements first, because they rule options out:
+
+- **Truncation is not the cause.** Of the 725 colliding ids, **0 have two
+  distinct `name` values** — every collision is two source rows that genuinely
+  share a name within one screen. Removing the `[:40]` slice fixes nothing.
+- **The collisions are structured, not accidental.** 722 ids carry 2 rows, 2
+  carry 3, 1 carries 5. `DelRosso_2023_repressors` is 697 of the 725, and in
+  **all 697 the two rows have different sequences**: 222 differ by promoter
+  (`Max avg pEF` vs `Max avg PGK`) and the other 486 are two different 80-aa
+  tiles under one `<gene>_<n>` label, e.g. `ACTR8_1` as
+  `NGKEKGGEKEKEQRGVKRPIVPALVPESLQ…` and `MTQAEKGDTENGKEKGGEKEKEQRGVKRPI…`,
+  overlapping windows with their own scores. Ludwig's 9 colliding ids, by
+  contrast, have **identical** sequences — true duplicates.
+
+So the shortfall is a mixture of a real identity bug (a tile is not identified
+by its gene and domain index) and harmless duplication, and **the survivor is
+whichever row `04` wrote last for 708 of them**.
+
+**Option A — sequence digest in the id.** `ED_{SCREEN}_{NAME}~{sha256[:6]}`,
+applied when the id would otherwise collide. Guaranteed unique, deterministic
+from content rather than row order, and already this codebase's answer to the
+same problem one layer up (`fuse.py` after F8a). Cost: opaque ids, and a
+corrected sequence in a future source revision produces a *new* id rather than
+updating the old row.
+
+**Option B — encode the experiment: condition + tile ordinal.**
+`ED_DELROSSO_2023_REPRESSORS_ACTR8_1_PEF_T2`, with a `readout` column (shared
+with F8 option A) and the ordinal assigned by sorting the tiles by sequence so
+it does not depend on row order. Human-readable and it records what the two
+rows actually are. Cost: a per-source `col_condition` key in `SCREEN_FILES`,
+more code than A, and the ordinal is still positional information that has no
+meaning in the paper.
+
+**Option C — refuse the build.** Have `insert_or_replace` count UPDATEs whose
+incoming row differs from the stored one on `sequence_aa`, and have `04` fail
+unless `--allow-duplicate-ids` is passed. This fixes nothing by itself and
+should ship anyway: a build that silently drops 9% of one source is worse than
+one that stops. ~15 lines, independent of A and B, no id changes.
+
+**Option D — deduplicate what is genuinely duplicated, key the rest.**
+Ludwig's 16 identical-sequence rows should collapse at ingest with a logged
+count rather than by accident in the upsert. Complements A or B rather than
+replacing them.
+
+**Option E — accept and document.** 713 rows with distinct sequences stay out
+of the library. Not recommended, but worth naming: 697 of them are one screen's
+extra tiles, and the library already holds the best-scoring tile per domain
+label for that screen, so the loss is "fewer tiles per domain", not "missing
+domains".
+
+**Recommended: C now, then A with a `readout` column for the pEF/PGK split.**
+C is cheap, independent, and converts the whole class of defect from silent to
+loud. A is the keying fix with the smallest surface, and B's readability is not
+worth per-source configuration when the digest is already the house pattern;
+the one piece of B worth keeping is the `readout` column, which F8 wants too.
+
+**Rebuild mechanics, which are the real cost.** Re-keying orphans the 725
+collapsed rows: they stay in the deployed DB under their old ids with no source
+row to update them. That needs a genuine table rebuild, so the sequence is
+`01`/`02`/`03` → **`04 --rebuild`** → `06` → `04` → both validators, and it is
+the one circumstance in which `--rebuild` is correct rather than destructive.
+Running it in the wrong order loses the extraction, which is why this should not
+ride along with an ordinary pass.
 
 ---
 
