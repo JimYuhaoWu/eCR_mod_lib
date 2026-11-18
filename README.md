@@ -39,13 +39,14 @@ raw sources or integrate new data.
 
 ## Current library size
 
-**~10,800 records** — last updated 2026-05-30 · full rebuild pending on server
+**10,758 records** — last updated 2026-05-30 · full rebuild pending on server
 
-| Type | Approx. count |
-|---|---|
-| DBD | ~3,250 |
-| ED | ~7,700 |
-| CR | ~540 |
+| Type | Approx. count | Exact, 2026-05-30 snapshot |
+|---|---|---|
+| DBD | ~3,250 | 3,248 |
+| ED | ~6,970 | 6,973 |
+| CR | ~540 | 537 |
+| **total** | **~10,760** | **10,758** |
 
 | Validation level | Meaning |
 |---|---|
@@ -53,7 +54,13 @@ raw sources or integrate new data.
 | `ChIP-validated` | Experimentally characterized (Gal4-fusion assays, ChIP-seq) |
 | `motif-only` | PWM/motif available (JASPAR); no direct binding evidence |
 | `predicted` | Computational prediction only |
-| `structurally-resolved` | Crystal or cryo-EM structure available |
+
+Counts in the snapshot: `screen-validated` 6,167, `predicted` 2,603,
+`motif-only` 1,177, `ChIP-validated` 811. A fifth level,
+`structurally-resolved`, is still accepted by the schema CHECK but used by
+**zero** records and is no longer offered by `05_validate.py`; see F6.3 in
+`docs/DBD_EXTRACTION_FIXES.md` for why removing it from the CHECK needs a
+deliberate table rebuild.
 
 ---
 
@@ -98,7 +105,7 @@ module_library/
 │       ├── Ludwig_2023_mmc4.xlsx
 │       ├── Kristof_2025_MOESM1.xlsx
 │       ├── Mukund_2023_mmc4.xlsx    # pairs data — not integrated (combinatorial)
-│       ├── Mukund_2023_mmc5.xlsx    # Pfam screen — 55 unique entries integrated
+│       ├── Mukund_2023_mmc5.xlsx    # Pfam screen — 52 entries, 104 rows
 │       ├── TENet_2024_media-6.xlsx  # TENet preprint RD-DMS (committed)
 │       ├── TENet_2024_media-5.xlsx  # TENet designed sequences (not yet integrated)
 │       └── EpiGenes_main.csv
@@ -210,12 +217,12 @@ python scripts/04_build_library.py --rebuild
 | [DelRosso et al. 2023](https://doi.org/10.1038/s41586-023-05906-y) | Activation + Repression Domains sheets | screen-validated | 10.1038/s41586-023-05906-y |
 | [Tycko et al. 2020](https://doi.org/10.1016/j.cell.2020.11.024) | NucAct + NucRepr Pfam-domain screens | screen-validated | 10.1016/j.cell.2020.11.024 |
 | [Compendium 2021](https://doi.org/10.1016/j.molcel.2021.11.007) | Table S2, Activity H+M (404 AD + 324 RD) | ChIP-validated | 10.1016/j.molcel.2021.11.007 |
-| [Staller et al. 2022](https://doi.org/10.1016/j.cels.2022.01.002) | 50 predicted novel ADs (Z≥0.5) + 5 WT domains | screen-validated | 10.1016/j.cels.2022.01.002 |
+| [Staller et al. 2022](https://doi.org/10.1016/j.cels.2022.01.002) | 50 predicted novel ADs (Z≥0.5) + 5 WT domains — **only 1 of the 5 WT domains is in the snapshot**, and its `name` is the literal string `none`, a parse failure (F8b) | screen-validated | 10.1016/j.cels.2022.01.002 |
 | [Tycko et al. 2025](https://doi.org/10.1038/s41587-024-02442-6) | ST3 CD2 ADs (38) + ST3 CD43 RDs (1,223); compact effectors, multi-context | screen-validated | 10.1038/s41587-024-02442-6 |
-| [Ludwig et al. 2023](https://doi.org/10.1016/j.cels.2023.05.008) | Viral EDs: vTR (195) + CoV (135) + HHV (268); activators + repressors | screen-validated | 10.1016/j.cels.2023.05.008 |
+| [Ludwig et al. 2023](https://doi.org/10.1016/j.cels.2023.05.008) | Viral EDs: vTR (186) + CoV (135) + HHV (261) = 582; activators + repressors. `organism` was `Homo sapiens` in the 2026-05-30 snapshot and becomes `viral` on the next rebuild (F6.2) | screen-validated | 10.1016/j.cels.2023.05.008 |
 | [Kristof et al. 2025](https://doi.org/10.1186/s13059-025-03640-4) | 81 engineered CRISPRi repressor domain constructs | ChIP-validated | 10.1186/s13059-025-03640-4 |
 | [Valbuena, Nigam, Tycko et al. 2024](https://doi.org/10.1101/2024.09.21.614253) *(preprint)* | 51 WT repressor domains from DMS study; HT-recruit scores | screen-validated | 10.1101/2024.09.21.614253 |
-| [Mukund et al. 2023](https://doi.org/10.1016/j.cels.2023.07.001) | 55 non-HiTEff short nuclear domains (activators + repressors); HT-recruit assay | screen-validated | 10.1016/j.cels.2023.07.001 |
+| [Mukund et al. 2023](https://doi.org/10.1016/j.cels.2023.07.001) | 52 non-HiTEff short nuclear domains, ingested twice as 104 rows — one for the activation readout, one for the repression readout, so every domain carries both an `activator` and a `repressor` record (F8) | screen-validated | 10.1016/j.cels.2023.07.001 |
 
 ### CR
 
