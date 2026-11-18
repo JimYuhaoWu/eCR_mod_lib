@@ -281,10 +281,17 @@ All three gates pass (`--validate`, exit 0):
 
 287 records set `dbd_review_flag` — an excluded domain or effector-annotated
 region overlaps the kept span, or the span is mostly not DNA-binding feature.
-Real ones: **NSD2/KMT2C** (SET), **ZNF541/TRERF1** (ELM2, a NuRD recruiter — an
-unintended closer), **ATF7** (transactivation domain), **ZHX2/ZHX3**, **MGA**
-and **TRPS1** (span coverage). Conservative ones: **REST**, **YY1**, **FOS**,
-**HINFP**, where the flagged region is itself required for DNA binding.
+Real ones: **ZNF541/TRERF1** (ELM2, a NuRD recruiter — an unintended closer),
+**ATF7** (transactivation domain), **ZHX2/ZHX3**, **MGA** and **TRPS1** (span
+coverage). Conservative ones: **REST**, **YY1**, **FOS**, **HINFP**, where the
+flagged region is itself required for DNA binding.
+
+**[corrected 2026-11-18]** This list named **NSD2/KMT2C** first. Both carry
+`dbd_review_flag = 0` — NSD2 extracts `dna_bind` 447-527, KMT2C 28-52, and
+their SET/PHD/PWWP domains fall *outside* the kept span, so flag 0 is correct
+behaviour. The error propagated from here into the first draft of
+`DBD_EXTRACTION_FIXES.md` (F4.2). KMT2C has a different problem: its span is
+25 aa of a 4,911-aa protein, which F2b now flags.
 The flag is a review prompt, not a verdict.
 
 ### Consumers
@@ -298,8 +305,14 @@ before this change). `output.py --include-sequence` carries `dbd_sequence_aa`,
 
 ### Still open
 
-- The 196 `none` records and the `Others` family need per-family keep rules.
-- The 32 flagged records need curation; ELM2- and SET-bearing chassis should
-  probably be excluded from opener designs outright.
+- The **262** `none` records and the `Others` family need per-family keep rules.
+  (**[corrected 2026-11-18]** this line said 196, a figure from an earlier run;
+  `:188` in this same file already tabulated 262. F9 splits these into
+  `none` abstentions and retryable `no_features` fetch failures.)
+- The **287** flagged records need curation; ELM2-bearing chassis should
+  probably be excluded from opener designs outright. (**[corrected
+  2026-11-18]** this line said 32, the pre-rework count that `:236` records as
+  "32 → 287". As of F1 in eCR_predictor they are excluded by default rather
+  than awaiting curation.)
 - `dbd_length_aa` is not yet a design-time constraint. ZNF850 extracts to 900 aa,
   so the fusion is ~980 aa (~2.9 kb) — real against a ~4.7 kb AAV cargo.

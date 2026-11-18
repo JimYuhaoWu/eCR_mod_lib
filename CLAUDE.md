@@ -18,7 +18,7 @@ MEF→iPSC reprogramming research. GitHub: https://github.com/JimYuhaoWu/eCR_mod
 | Type | Count | Key sources |
 |---|---|---|
 | DBD | ~3,250 | AnimalTFDB v4 (human + mouse), UniProt sequences + zinc-finger counts, JASPAR motifs |
-| ED | ~7,700 | 11 sources — see SCREEN_FILES in scripts/02_seed_ed.py |
+| ED | 6,973 | 11 sources — see SCREEN_FILES in scripts/02_seed_ed.py |
 | CR | ~540 | EpiFactors v2.0 + curated YAML |
 
 ## Environment & installation
@@ -116,7 +116,7 @@ are tracked in `literature/papers.yaml`.
 
 ### 2026-05 literature cycle — complete
 All 17 candidates reviewed. One paper integrated:
-- **Mukund 2023** (10.1016/j.cels.2023.07.001): 55 activator + 55 repressor entries (110 total); `exclude_labels_from` filters the 4,113 HiTEff duplicates automatically. ✓ integrated 2026-05-30.
+- **Mukund 2023** (10.1016/j.cels.2023.07.001): **52 domains, 104 rows** — the dual-readout screen is ingested through two SCREEN_FILES entries, so each domain gets one `activator` record (Avg Act) and one `repressor` record (Avg ReprD13) with contradictory `subtype` and `chromatin_state_effect`. Not 55 + 55. `exclude_labels_from` filters the 4,113 HiTEff duplicates automatically. ✓ integrated 2026-05-30; representation still to be decided, F8 in docs/DBD_EXTRACTION_FIXES.md.
 
 ### zinc_finger_count column — needs a rebuild to populate
 `scripts/01_fetch_dbd.py` now fetches a UniProt-annotated zinc-finger count
