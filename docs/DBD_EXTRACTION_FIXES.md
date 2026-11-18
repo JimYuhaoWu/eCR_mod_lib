@@ -510,6 +510,69 @@ them, and F4's and F5's discussion of the `none` cohort treats it as one thing.
 
 ---
 
+## F10 — **[new 2026-11-18]** `module_id` is not unique, so 732 rows never reach the library
+
+**Repo:** eCR_mod_lib · **Files:** `scripts/02_seed_ed.py` (`:725`),
+`scripts/schema.py` (`insert_or_replace`, `:189-234`)
+
+Found while running the `02` → `06` → `04` pass. `02_seed_ed.py` wrote
+**7,703** ED records; the library holds **6,973**. The 730-row gap is not a
+filter, it is a silent collapse.
+
+`module_id` is built as
+`f"ED_{screen_name.upper()}_{name.upper().replace(' ','_')[:40]}"`, so two rows
+from the same screen with the same `name` get the same id. 04's
+`insert_or_replace` sees the id already present and issues an **UPDATE**, so
+the last row written wins and the earlier ones are overwritten in place. No
+warning is printed, and the only trace is that the source and library counts
+disagree.
+
+Measured on the regenerated `data/processed/*_raw.tsv`:
+
+| | rows written by 0x | unique `module_id` | rows overwritten |
+|---|---|---|---|
+| ED | 7,703 | 6,973 | **730** |
+| CR | 539 | 537 | **2** |
+| DBD | 3,248 | 3,248 | 0 |
+
+**713 of the 730 overwritten ED rows carry a sequence that differs from the
+survivor**, so that is real data loss rather than deduplication; the other 17
+are exact duplicates and collapse harmlessly. By source, the ids that lose a
+distinct sequence are **`DelRosso_2023_repressors` 697**, `HiTEff_repressors`
+5, `Mukund_2023_activators` 2, `Mukund_2023_repressors` 2,
+`Staller_2022_wt_domains` 1, `HiTEff_activators` 1. Ludwig 2023's 16 colliding
+ids are all exact duplicates, which is why 598 source rows become 582 library
+rows with nothing lost.
+
+Worst single case, and the resolution of **F8b**: `ED_STALLER_2022_WT_DOMAINS_NONE`
+is **five rows with five distinct sequences and one name**. All five WT domains
+in Staller 2022 *were* ingested; the name parsed as the literal string `'none'`
+for every one of them, so they shared an id and four were overwritten. F8b's
+"1 of 5 was ingested" is wrong about the mechanism — nothing failed to parse
+except the name, and the loss happened at the upsert.
+
+**This also corrects F8 and the README numbers.** The doc fixes of 2026-11-18
+treated README's "55 + 55 entries (110 total)" and Ludwig's "195 + 135 + 268"
+as errors. They are not: those are what `02` loads, which is what the papers
+report. The library holds fewer because of this defect. The corrected framing
+is *source count vs library count*, and both belong in the README.
+
+- Make `module_id` unique: include the fragment/tile identifier the screens
+  already provide (`col_fragment`), or append a short digest of the sequence as
+  `fuse.py` now does for colliding ED names (F8a). A library `name` is not
+  unique and never was.
+- Make the collapse impossible to miss: `insert_or_replace` should count
+  UPDATEs whose incoming row differs from the stored one on `sequence_aa`, and
+  04 should report that count. A library that silently drops 10% of one
+  source's rows is worse than one that refuses to build.
+- **Decide the DelRosso representation first.** 697 of the 713 are one source,
+  so the fix is mostly about how that screen's tiles are keyed. Re-keying
+  changes `module_id` for those rows, which means the existing collapsed rows
+  become orphans — this needs a deliberate table rebuild, not a migration, and
+  should not ride on an ordinary `04` pass.
+
+---
+
 ## F7 — record what was dropped, even when UniProt does not name it
 
 **Repo:** eCR_mod_lib · **File:** `scripts/06_extract_dbd.py`
