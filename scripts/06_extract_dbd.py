@@ -669,11 +669,21 @@ def validate(lib, log) -> int:
     log.info(f"[gate 1/length] {len(tiny):,} spans under "
              f"{MIN_PLAUSIBLE_SPAN_AA} aa across all kinds "
              f"({dict(tiny['dbd_extraction'].value_counts())})")
-    if len(tiny):
+    for _, r in tiny.head(10).iterrows():
+        log.info(f"    {r['gene_symbol']}: {int(r['dbd_length_aa'])} aa "
+                 f"({r['dbd_extraction']}), flag {r['dbd_review_flag']}")
+    # A short span is not itself a failure -- KMT2C's 25-aa homeobox is what
+    # UniProt annotates, and the honest response is to flag it, not to invent a
+    # boundary. The failure is a short span that is NOT flagged, because that
+    # one reaches a design run as if it were a clean chassis.
+    unflagged_tiny = tiny[tiny["dbd_review_flag"].fillna(0).astype(float) != 1]
+    log.info(f"[gate 1/length] {len(unflagged_tiny):,} of those carry no "
+             f"review flag")
+    if len(unflagged_tiny):
         fails += 1
-        for _, r in tiny.head(10).iterrows():
-            log.warning(f"    {r['gene_symbol']}: {int(r['dbd_length_aa'])} aa "
-                        f"({r['dbd_extraction']}), flag {r['dbd_review_flag']}")
+        for _, r in unflagged_tiny.head(10).iterrows():
+            log.warning(f"    UNFLAGGED {r['gene_symbol']}: "
+                        f"{int(r['dbd_length_aa'])} aa ({r['dbd_extraction']})")
     if short:
         fails += 1
         for gene, length, kept in short[:10]:
