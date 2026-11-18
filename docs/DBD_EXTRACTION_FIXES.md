@@ -317,14 +317,43 @@ domain**, 14 of them the STAT family; and `FLANK = 6` trims real DNA contacts,
 with 15 aa completing 24 of the 30 partially-covered records. None of this is
 fixed here — see the report's closing section for the tradeoffs.
 
+### F5 follow-up — the four recommendations, implemented 2026-11-18
+
+**Status: all four landed** (`scripts/06_extract_dbd.py`, new
+`scripts/pfam_dbd.py`). Spans **2,439 → 2,460**, abstentions **262 → 227**,
+review flags **352 → 348**, and against the 220 solved complexes full contact
+coverage **185 → 201**. Details and the costs are in the report; the three
+things that changed my mind while implementing them:
+
+1. **Dropping `ipt/tig` touches 16 records, not 12.** The 12 EBF/RBPJ records
+   are recovered on the *right* domain by the new Pfam fallback — 3MLN gives
+   Ebf1 30 of 30 DNA contacts inside the new span against 0 of 30 before, 3IAG
+   gives Rbpj 16 of 16 against 0 of 16 — CAMTA1/2 shrink from 903 aa to 156 aa,
+   and NFATC4 loses 101 aa that the family's structures say contacts DNA. The
+   last one is a real cost, recorded as a limitation rather than papered over.
+2. **The report's premise for recommendation 2 was wrong for 10 of the 28.**
+   It said the keep rules needed Pfam locations; in fact 4 (HSF1, TP73 and
+   orthologs) were already in the UniProt table as a `REGION` the extractor
+   never read, and 6 were a missing `"matrin"` in `ZNF_KEEP_TYPES`. Only 18
+   needed Pfam. Full accounting in the report.
+3. **Raising FLANK needed `MIN_SPAN_COVERAGE` fixed first.** That gate divided
+   by the flanked span, so a longer flank lowered every record's coverage
+   without changing a boundary — at FLANK=15 it flagged 12 of the 14 GATA1–6
+   records. The denominator is now the feature-bracketed region. **This was not
+   one of the four recommendations**; it is a defect the third one exposed.
+
+Also measured and not acted on: **`MAX_SPAN_FRACTION = 0.80` costs BCL11A**,
+whose 666-aa span (79.8% of the protein) held all 17 of its mapped DNA contacts
+and which now has no span at all. That is the one unambiguous regression.
+
 **[rev] Narrowed.** The first draft said "all three current gates are
 self-consistency checks" and that the validation "is circular". Only gate 2 is
-circular in the strict sense: its 7 `ANCHORS` (`06:413-421`) are commented as
+circular in the strict sense: its 9 `ANCHORS` (`06:754-765`, 7 of them until F5's follow-up) are commented as
 "Hand-checked spans from the fib->beta run (2026-09-03)", and
 `DBD_EXTRACTION_PLAN.md:271-272` calls the agreement "byte-identical to the
 by-hand extraction used for the fib→β constructs" — so it shows the script
-reproduces the hand method, not that either is right. Gates 1 (`06:443-465`) and
-3 (`06:498-527`) do test something real — span against annotated features — but
+reproduces the hand method, not that either is right. Gates 1 (`06:785-843`) and
+3 (`06:867-900`) do test something real — span against annotated features — but
 re-read the same cached feature table the extractor used, so none of the three
 reaches outside the pipeline's own inputs. That is the reviewer objection.
 
