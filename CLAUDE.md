@@ -118,12 +118,21 @@ are tracked in `literature/papers.yaml`.
 All 17 candidates reviewed. One paper integrated:
 - **Mukund 2023** (10.1016/j.cels.2023.07.001): **55 rows per readout, all 110 in the library.** The dual-readout screen is ingested through two SCREEN_FILES entries, so each domain gets one `activator` record (Avg Act) and one `repressor` record (Avg ReprD13). Since F8 each carries `readout` (activation/repression) and `paired_module_id` pointing at its sibling, so the opposite `subtype` reads as two measurements rather than a contradiction. `exclude_labels_from` filters the 4,113 HiTEff duplicates automatically. ✓ integrated 2026-05-30.
 
-### zinc_finger_count column — needs a rebuild to populate
-`scripts/01_fetch_dbd.py` now fetches a UniProt-annotated zinc-finger count
-(`ZN_FING` features) for C2H2 families (`zf-C2H2`, `ZBTB`) into the new
-`zinc_finger_count` column (added to `schema.py`). The committed TSV/DB predate
-this — run `01_fetch_dbd.py` then `04_build_library.py --rebuild` on the server
-to populate it. Consumed by eCR_predictor to add Zn ions to AF3 inputs.
+### zinc_finger_count column — complete
+`scripts/01_fetch_dbd.py` fetches a UniProt-annotated zinc-finger count
+(`ZN_FING` features) for C2H2 families (`zf-C2H2`, `ZBTB`) into the
+`zinc_finger_count` column. It has been populated in the committed TSV since
+the 2026-09-04 server rebuild (`d7c38b4`): **1,010 of the 3,248 DBD records
+carry a count** — the C2H2/ZBTB families the fetch targets. ✓ done 2026-09-04.
+
+Since F3 (2026-11-18) there is a second column beside it,
+**`dbd_zinc_finger_count`** — the fingers the *extracted span* actually kept,
+populated on 2,439 records. `zinc_finger_count` counts every `ZN_FING` feature
+over the whole protein, PHD and RING fingers included, so it is an upper bound:
+ZFPM2 claims 8 for a 102-aa span of a 1,151-aa protein. eCR_predictor's
+`af3.py` prefers `dbd_zinc_finger_count` when adding Zn ions to AF3 inputs and
+falls back to `zinc_finger_count` with a warning (correct for `refine.py`,
+which folds full-length sequences).
 
 ### Data not yet integrated (files in data/manual/)
 
