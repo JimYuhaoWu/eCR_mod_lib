@@ -54,8 +54,8 @@ Neither fallback changes a span that already existed: measured over the 2,818
 extractable records, 35 abstentions gain a span (18 Pfam, 9 REGION, 8 from
 "matrin" joining ZNF_KEEP_TYPES), 18 change because 'ipt/tig' left
 KEEP_DOMAIN_HINTS, and nothing else moves. FLANK is deliberately unchanged at
-6; raising it is a separate change, because FLANK sits in the numerator of all
-three gates below.
+15. The gates do not see it: each measures the annotated feature extent, so
+a larger flank changes construct boundaries without changing any verdict.
 
 Rules that matter
 -----------------
@@ -75,8 +75,8 @@ Rules that matter
    2,506 -- which is not an extraction, it is a relabelling. Spans that large
    get `dbd_extraction='dispersed'` and no span columns, and implausibly short
    ones are flagged (see MAX_SPAN_FRACTION / MIN_PLAUSIBLE_SPAN_AA). Both
-   gates measure the FLANKED span, so FLANK cannot be raised without moving
-   them -- which is why it is not raised here.
+   gates measure the annotated feature extent, not the flanked span, so FLANK
+   cannot move a verdict.
 6. Say what was dropped. Every residue outside the kept span is recorded in
    `dbd_dropped_regions`, labelled from the feature table where UniProt names
    it, and `dbd_dropped_review_flag` is set when the dropped material looks
@@ -132,13 +132,20 @@ RAW_DIR = ROOT / "data" / "raw"
 PROCESSED_DIR = ROOT / "data" / "processed"
 DB_PATH = ROOT / "library" / "module_library.db"
 
-# Arm 2 of the external validation argues this should be larger -- 93 of the
-# 97 contacts missed by a partial span lie within 30 aa of an edge. Raising it
-# is NOT done here: FLANK is in the numerator of the three gates below, so
-# padding the span loosens all of them at once (a 13-aa A.T hook clears the
-# 40-aa floor on padding alone). That is its own change, with its own
-# measurement; see docs/DBD_EXTERNAL_VALIDATION.md "recommendation 3".
-FLANK = 6
+# F5 recommendation 3. Arm 2 of the external validation showed FLANK=6 trims
+# real DNA contacts: of 220 records scored against solved protein-DNA
+# complexes, 30 were partial, and 93 of their 97 missed contacts lay within
+# 30 aa of a span edge -- GATA3 (3DFX) misses 348-365 with a span ending at
+# 347, THRB (2NLL) misses 188-198 ending at 187.
+#
+# Raising it was tried once and reverted, because FLANK was in the numerator
+# of all three gates below: padding loosened the 40-aa floor (a 13-aa A.T hook
+# cleared it on padding alone) and tightened the dispersed gate (ZNF469 lost a
+# 983-aa span at 25% of its protein because 983 + 18 crossed MAX_SPAN_AA).
+# None of that was a boundary decision; it was the flank being counted as
+# evidence. So the gates now measure `ext`, the annotated feature extent, and
+# FLANK is invisible to them -- see "Measuring the gates" below.
+FLANK = 15
 BATCH = 100          # accessions per UniProt search request
 MIN_SPAN_COVERAGE = 0.5   # below this, the span is mostly not DNA-binding feature
 
@@ -646,21 +653,40 @@ def extract_one(seq: str, feats: dict, acc: str | None = None) -> dict:
                 "dbd_zinc_finger_count": None,
                 "n_znf": len(zn), "_inside": ["coordinates past sequence end"]}
 
+    # Measuring the gates
+    # -------------------
+    # `ext` is the annotated feature extent: first kept feature to last, with
+    # no flank. Every gate below measures it rather than len(sub), so FLANK
+    # cannot move a verdict. The pull-back above only ever shortens the flank
+    # (it fires when an excluded domain lies OUTSIDE [first, last]), so the
+    # stored span always contains `ext` and `ext <= len(sub)` holds.
+    #
+    # The two gates then divide the work cleanly, which is what the first
+    # attempt at FLANK=15 got wrong by moving one and not the other:
+    #   * coverage = covered / ext asks "are these features one module, or two
+    #     distant ones with a protein between them" -- the MGA case. For a
+    #     single merged interval it is 1.000, which is correct and not a
+    #     silence, because there is no gap to measure.
+    #   * ext < MIN_PLAUSIBLE_SPAN_AA asks "is there enough annotated feature
+    #     here to be a domain at all" -- the KMT2C case, a 13-aa A.T hook.
+    #     That question is about the feature, never about the padding.
+    ext = last - first + 1
+
     # Rule 5 (F2): the span is the protein. Report the ratio and write no span,
     # rather than storing a near-full-length sequence under a DBD column name.
     # dbd_review_flag is set as well, so a `dispersed` record cannot be mistaken
     # for a clean abstention by a consumer that only looks at the flag.
-    frac = len(sub) / len(seq)
-    if (frac >= MAX_SPAN_FRACTION and len(sub) >= MIN_DISPERSED_SPAN_AA) \
-            or len(sub) >= MAX_SPAN_AA:
+    frac = ext / len(seq)
+    if (frac >= MAX_SPAN_FRACTION and ext >= MIN_DISPERSED_SPAN_AA) \
+            or ext >= MAX_SPAN_AA:
         return {"dbd_extraction": "dispersed", "dbd_start": None, "dbd_end": None,
                 "dbd_sequence_aa": None, "dbd_length_aa": None,
                 "dbd_excluded_domains": ";".join(n for n, _, _ in dropped) or None,
                 "dbd_review_flag": 1,
                 "dbd_dropped_regions": None, "dbd_dropped_review_flag": 0,
                 "dbd_zinc_finger_count": None, "n_znf": len(zn),
-                "_inside": [f"span would be {len(sub)} aa = {frac:.0%} of the "
-                            f"{len(seq)}-aa protein ({lo}-{hi}); dispersed"]}
+                "_inside": [f"feature extent {ext} aa = {frac:.0%} of the "
+                            f"{len(seq)}-aa protein ({first}-{last}); dispersed"]}
 
     # Rule 2: a dropped feature the span carries is a conflict. The test is
     # OVERLAP, not containment: a domain straddling a boundary is still partly
@@ -679,24 +705,22 @@ def extract_one(seq: str, feats: dict, acc: str | None = None) -> dict:
     # 3,065-aa protein) because two distant keep-features bracket the whole
     # middle. Gate 1 only catches spans that are too SHORT.
     #
-    # The denominator is the stored span. Dividing by the feature-bracketed
-    # region instead was tried with FLANK=15 and is a trap: `first`/`last` are
-    # min/max over `spans` and the numerator sums _merge(spans), so a single
-    # merged interval makes the two identical and the gate reads 1.000 by
-    # construction -- at least 1,361 of 2,460 records. It would stop
-    # measuring how much
-    # of the span is feature and start measuring only whether the features are
-    # fragmented. Both that change and FLANK belong to the same follow-up.
+    # Denominator is `ext`, so this is a fragmentation measure: how much of
+    # the region the features bracket is actually feature. It reads 1.000 for
+    # a single merged interval by construction (1,361 of the span-bearing
+    # records), which is why the floor below moved to `ext` in the same
+    # change -- on len(sub) these two gates overlapped and both drifted with
+    # FLANK; on `ext` they ask different questions and neither does.
     covered = sum(e - s + 1 for s, e in _merge(spans))
-    coverage = covered / len(sub)
+    coverage = covered / ext
     if coverage < MIN_SPAN_COVERAGE:
-        inside.append(f"span {coverage:.0%} DNA-binding feature")
+        inside.append(f"bracketed region {coverage:.0%} DNA-binding feature")
 
     # F2b: too short to hold one complete DNA-binding module, whatever the kind.
     # The acceptance gate checks ZnF pitch only, and only for znf_array and
     # bipartite, so dna_bind spans of 25 aa passed with the flag at 0.
-    if len(sub) < MIN_PLAUSIBLE_SPAN_AA:
-        inside.append(f"span {len(sub)} aa, under the "
+    if ext < MIN_PLAUSIBLE_SPAN_AA:
+        inside.append(f"feature extent {ext} aa, under the "
                       f"{MIN_PLAUSIBLE_SPAN_AA}-aa minimum for a DNA-binding module")
 
     if pfam_families:
@@ -798,11 +822,13 @@ def survey(rows, features, log) -> None:
 # to be re-justified, not a silent drift. The coordinates are FLANK-dependent,
 # which makes this a drift detector rather than independent evidence -- arm 1
 # and arm 2 of docs/DBD_EXTERNAL_VALIDATION.md supply that. The point here is
-# that these nine spans cannot change without someone noticing.
+# that these nine spans cannot change without someone noticing. The bracketed
+# values are what they were at FLANK=6; the boundaries move with the flank,
+# the VERDICTS (flag, dispersed) no longer do.
 ANCHORS = {
-    "HNF1A":  (81, 285),
-    "EGR3":   (269, 361),
-    "ZNF793": (221, 395),
+    "HNF1A":  (72, 294),      # was (81, 285) at FLANK=6
+    "EGR3":   (260, 370),     # was (269, 361)
+    "ZNF793": (212, 404),     # was (221, 395)
     # F2 reclassified this one deliberately, so the anchor is the VERDICT, not a
     # span: ZNF850's extraction ran 191-1090, i.e. 900 aa = 83% of a 1,090-aa
     # protein, ending at the C-terminus. That is what MAX_SPAN_FRACTION is for.
@@ -810,14 +836,14 @@ ANCHORS = {
     # and a 900-aa chassis was never usable anyway -- ~980 aa of fusion, ~2.9 kb
     # against a ~4.7 kb AAV cargo (DBD_EXTRACTION_PLAN.md "Still open").
     "ZNF850": "dispersed",
-    "ZNF540": (181, 660),     # the end is the C-terminus
-    "ZNF444": (173, 306),
-    "HINFP":  (9, 374),
+    "ZNF540": (172, 660),     # was (181, 660); the end is the C-terminus
+    "ZNF444": (164, 315),     # was (173, 306)
+    "HINFP":  (1, 383),       # was (9, 374); the start clamps to residue 1
     # The two rules F5 added, each with the record that motivated it, so neither
     # can go silently inert -- which is the real risk for the Pfam fallback,
     # since an empty data/raw/interpro/ turns it off without any error.
-    "HSF1":   (9, 126),       # DNA-binding REGION 15..120, flanked
-    "EBF1":   (12, 253),      # Pfam fallback: COE1 DNA-binding domain
+    "HSF1":   (1, 135),       # REGION 15..120, flanked and clamped to 1
+    "EBF1":   (3, 261),       # Pfam fallback: COE1 DNA-binding domain
 }
 
 KRAB_HINT = "krab"

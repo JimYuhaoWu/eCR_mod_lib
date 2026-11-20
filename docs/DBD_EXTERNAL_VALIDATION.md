@@ -334,13 +334,12 @@ cases the recommendation's own reasoning turned out to be wrong.
    greater chance of reaching toward an excluded domain — the existing
    pull-back already guards the latter, and the former is real for AAV cargo.
 
-   **Not done. `FLANK` stays 6, and the change was split into its own PR
-   after an audit of the first attempt.** `FLANK = 15` was implemented and
-   measured, and the measurement is why it is not here: FLANK sits in the
-   *numerator* of all three gates, so raising it loosens every one of them at
-   once. The first attempt corrected one of the three and left the other two,
-   which produced a library that was simultaneously too permissive and too
-   strict.
+   **Done: `FLANK = 15`, after moving all three gates off the flanked span.**
+   The first attempt raised FLANK alone and had to be reverted; the
+   measurement that forced the revert is the reason this version works. FLANK
+   sat in the *numerator* of all three gates, so raising it loosened every one
+   at once, and correcting one of the three produced a library that was
+   simultaneously too permissive and too strict.
 
    - **Too permissive.** `MIN_PLAUSIBLE_SPAN_AA = 40` measures the flanked
      span, so 30 aa of padding carries a span over it with no change in
@@ -369,11 +368,54 @@ cases the recommendation's own reasoning turned out to be wrong.
      lose the flag with the artifact, and so do AKNA (42.9%) and NFYB (36.8%),
      which are not artifacts.
 
-   The follow-up PR makes the flank invisible to all three gates — each
-   measures the annotated feature extent, never the padding — and re-measures
-   from there. The corrected sweep table above still stands as the motivation:
-   63 of 97 contacts and 185 —> 199 full-coverage records are what a correct
-   FLANK=15 is worth once the gates no longer see the flank.
+   **The fix is one rule: the flank is construct padding, so no gate may see
+   it.** Each now measures `ext`, the annotated feature extent — first kept
+   feature to last, no flank. The pull-back only ever shortens the flank, so
+   the stored span always contains `ext` and the substitution is well defined.
+   The two gates then divide the work instead of overlapping:
+
+   | gate | measures | asks |
+   |---|---|---|
+   | `coverage = covered / ext` | fragmentation of the bracketed region | one module, or two distant ones with a protein between them (MGA) |
+   | `ext < MIN_PLAUSIBLE_SPAN_AA` | the feature itself | is there enough annotated feature to be a domain at all (KMT2C) |
+   | `ext / len(seq)`, `ext >= MAX_SPAN_AA` | the feature extent | is the span the protein (ZNF462) |
+
+   Coverage still reads 1.000 for a single merged interval, and that is now
+   correct rather than a silence — there is no gap to measure, and "is this
+   enough feature" is the floor's question, asked of `ext` rather than of the
+   padding.
+
+   Measured against the three shipped changes (recommendations 1, 2 and 4 at
+   FLANK=6):
+
+   | | #13 | + FLANK=15 on `ext` |
+   |---|---|---|
+   | records with a span | 2,474 | **2,487** |
+   | `dbd_extraction='dispersed'` | 117 | **104** |
+   | `dbd_review_flag = 1` | 361 | 354 |
+   | stored spans under 40 aa | 27 | 5 |
+   | feature extents under 40 aa | 31 | **31, all flagged** |
+   | median span | 104 aa | 122 aa |
+
+   **No span is lost.** 13 records that were `dispersed` under the flanked
+   measure now keep a span, because their feature extent was never near the
+   cap: Repin1, ZNF30, ZNF319, ZNF512B, ZNF573, ZNF585A/B, ZNF749, ZNF799,
+   ZNF841, Zfp319, Zfp35, Zfp62. ZNF469 keeps its 983-aa extent at 24.9% of
+   the protein; BCL11A keeps its 79.8% span and gains the 6 residues to its
+   C-terminus. The records the first attempt silenced stay flagged, now with a
+   message that names the real quantity: KMT2C "feature extent 13 aa", AKNA
+   "9 aa", NFYB "7 aa".
+
+   **The cost, measured: 5 records lose a coverage flag and nothing replaces
+   it** — MECP2/Mecp2, HMGA2/Hmga2 and INSM1, all previously flagged at
+   48—50% span coverage. Their features merge into one interval, so the
+   fragmentation measure reads 1.000, and their extents (MECP2 188 aa, HMGA2
+   59 aa, INSM1 226 aa) are all above the floor. These are the records where "the span is half padding"
+   was a true statement about a *small* feature, and no gate asks that question
+   any more. They are not errors — MECP2's MBD and INSM1's finger array are
+   correctly located — but the flag was doing something, and this is what the
+   rule costs. 10 records gain a flag in exchange (CIZ1, FOXP3, LEUTX, PLAG1,
+   SOX18, ZNF503 and orthologs), all on a feature extent under the floor.
 4. **`domain` is the weakest kind** on both arms (93% recall ≥0.95; 40/51 full
    contact coverage), which is the kind whose spans rest on `KEEP_DOMAIN_HINTS`
    alone. If review effort is finite, spend it there.
@@ -391,28 +433,28 @@ cases the recommendation's own reasoning turned out to be wrong.
    first. 472 records: 30 `pfam`, 36 `domain`, 63 `bipartite`, 137
    `znf_array`, 89 `dna_bind`, 117 `dispersed`.
 
-## What the three shipped changes did, end to end
+## What all four changes did, end to end
 
-Recommendations 1, 2 and 4, at `FLANK = 6`. Measured by running the new
-`extract_one` over the same 2,818 extractable DBD records.
+Measured by running the new `extract_one` over the same 2,818 extractable DBD
+records.
 
 | | before | after |
 |---|---|---|
-| records with a span | 2,439 | **2,474** |
+| records with a span | 2,439 | **2,487** |
 | `dbd_extraction='none'` | 262 | **227** |
-| `dbd_extraction='dispersed'` | 117 | 117 |
-| `dbd_review_flag = 1` | 352 | **361** |
+| `dbd_extraction='dispersed'` | 117 | **104** |
+| `dbd_review_flag = 1` | 352 | 354 |
 | spans under 40 aa, unflagged | 0 | 0 |
-| median span | 103 aa | 104 aa |
-| total span residues | 448,411 | 453,790 |
+| feature extents under 40 aa, unflagged | 0 | 0 |
+| median span | 103 aa | 122 aa |
+| total span residues | 448,411 | 500,214 |
 
 **No record loses a span.** 35 abstentions gain one (18 `pfam`, 9 `dna_bind`
-via the REGION rule, 8 `znf_array` via `"matrin"`); 12 move onto a different
-domain (EBF1—4, RBPJ/RBPJL and orthologs, via the Pfam fallback); 6 shrink
-(CAMTA1/2, NFATC4 and orthologs, from dropping `ipt/tig`); the other 2,765 are
-byte-identical to `main`. Review flags rise by 9 rather than falling, which is
-the honest direction: eight of the EBF spans carry a `ZnF:C5-type` overlapping
-the new boundary, and that is worth a look.
+via the REGION rule, 8 `znf_array` via `"matrin"`); 13 more keep a span the
+old `dispersed` gate took on padding; 12 move onto a different domain
+(EBF1—4, RBPJ/RBPJL and orthologs, via the Pfam fallback); 6 shrink
+(CAMTA1/2, NFATC4 and orthologs, from dropping `ipt/tig`); every other span
+moves by the flank alone.
 
 All three acceptance gates pass against the new spans: 9/9 anchors (`ANCHORS`
 gained HSF1 for the REGION rule and EBF1 for the Pfam fallback, so neither can
@@ -420,14 +462,16 @@ go inert in silence), 27 spans under 40 aa of which **0 unflagged**, 0 spans
 reaching into a KRAB, 0 spans too short for their finger count, and 0 `pfam`
 spans carrying a zinc-finger count they have no evidence for.
 
-**Arm 2 has not been re-run for this configuration.** The `185 —> 201`
-figure quoted earlier in this report was measured at `FLANK = 15`, which is no
-longer what the script does. What is independently verified is the direction of
-the EBF/RBPJ re-anchoring: at FLANK=15 the cached coordinates of 3MLN put
-30 of 30 Ebf1 DNA contacts inside the new span against 0 of 30 before, and 3IAG
-16 of 16 for Rbpj against 0 of 16. The shipped spans are 8—9 residues
-narrower at each end (Ebf1 12—253 rather than 3—261; Rbpj 42—334 rather
-than 33—343), so the counts need re-measuring before they are quoted again.
+**Arm 2 has not been re-run end to end for this configuration**, and the
+aggregate `185 —> 201` should be treated as provisional until it is. Two
+parts of it are directly verified, because the gates do not move boundaries:
+the spans scored by hand from the cached coordinates are the spans this
+configuration produces. 3MLN puts **30 of 30** Ebf1 DNA contacts inside
+`3—261` against 0 of 30 in the old `256—351`, and 3IAG **16 of 16** for
+Rbpj inside `33—343` against 0 of 16 in `349—451`. The flank sweep's 63 of
+97 recovered contacts also still holds, since those boundaries are unchanged;
+what changed is that 14 fewer spans are nulled by the dispersed gate, so the
+aggregate can only improve on the figure measured during the first attempt.
 
 ## Limitations
 
@@ -457,9 +501,10 @@ than 33—343), so the counts need re-measuring before they are quoted again.
   destroyed it independently — the flank pushed it to 81.9%, and the
   then-ungated REGION rule promoted `REGION 737..835 "DNA-binding"`, dragging
   the span to the C-terminus and over 80% even at FLANK=6. Neither is a
-  property of the threshold. The record stands as the reason to measure the
-  gates against the feature extent rather than the padded span, which is what
-  the FLANK follow-up does.
+  property of the threshold. With the gates measuring the feature extent it
+  keeps its span (`155—835`) and its 17 verified contacts, and the threshold
+  is back to meaning what its name says. It remains two tenths of a percent
+  from the cut, so it is still the record to watch.
 - Contacts are computed on the deposited coordinates of one chain mapping, with
   no symmetry expansion, so a contact made only by a crystallographic neighbour
   is not counted.
