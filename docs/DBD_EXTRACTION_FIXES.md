@@ -317,14 +317,77 @@ domain**, 14 of them the STAT family; and `FLANK = 6` trims real DNA contacts,
 with 15 aa completing 24 of the 30 partially-covered records. None of this is
 fixed here — see the report's closing section for the tradeoffs.
 
+### F5 follow-up — recommendations 1, 2 and 4, landed 2026-11-20
+
+**Status: three of the four landed; recommendation 3 (`FLANK`) was split into
+its own PR after an audit.** `scripts/06_extract_dbd.py`, new
+`scripts/pfam_dbd.py`. Spans **2,439 → 2,474**, abstentions **262 → 227**,
+review flags **352 → 361**, `dispersed` unchanged at 117, and **no record
+loses a span**. Details and costs in `DBD_EXTERNAL_VALIDATION.md`.
+
+Three things changed my mind while implementing them:
+
+1. **Dropping `ipt/tig` touches 18 records, not 12.** The 12 EBF/RBPJ records
+   are recovered on the *right* domain by the new Pfam fallback, CAMTA1/2
+   shrink from 903 aa to 156 aa, and NFATC4 loses 101 aa that the family's
+   structures say contacts DNA. The last one is a real cost, recorded as a
+   limitation rather than papered over. (An earlier draft said 16 while its own
+   three bullets enumerated 12 + 4 + 2; the measured figure is 18.)
+2. **The report's premise for recommendation 2 was wrong for 10 of the 28.**
+   It said the keep rules needed Pfam locations; in fact 4 (HSF1, TP73 and
+   orthologs) were already in the UniProt table as a `REGION` the extractor
+   never read, and 6 were a missing `"matrin"` in `ZNF_KEEP_TYPES`. Only 18
+   needed Pfam.
+3. **Both new keep paths have to be gated on abstention, not just the Pfam
+   one.** Run unconditionally, the REGION rule edits 17 records that were never
+   abstentions, against the 9 it recovers, and because a REGION and a DOMAIN
+   routinely annotate the same module it manufactures `bipartite` labels on
+   records with one module (ARNT, TFCP2, PRDM9). Gated, all 17 keep their old
+   spans.
+
+**[rev 2026-11-20] Recommendation 3 reverted and split out.** `FLANK = 15`
+was implemented, measured, and then withdrawn. Two reviews — a correctness
+pass on the diff and an independent re-measurement that never saw the first
+set of numbers — found the same root cause: **`FLANK` is in the numerator of
+all three gates**, so raising it loosens every one at once, and the first
+attempt corrected one of the three.
+
+- `MIN_PLAUSIBLE_SPAN_AA = 40` measures the flanked span, so short-span flags
+  fell **27 → 5**, so 22 records left the set acceptance gate 1 inspects
+  and 31 records flagged on `main` came back unflagged. KMT2C: a 4,911-aa
+  protein whose sole DNA-binding annotation is a **13-aa** A.T hook, emitted
+  as a 43-aa span with `dbd_review_flag = 0`. Acceptance gate 1 inspects spans
+  *under* 40 aa, so those 22 left the set it checks and it passed in silence.
+- `MAX_SPAN_FRACTION` / `MAX_SPAN_AA` measure it too: 14 spans lost to padding
+  alone, including ZNF469 at **24.9%** of its protein, dropped because
+  983 + 18 crosses the 1,000-aa cap.
+- The one gate that *was* corrected went too far. `coverage = covered /
+  (last - first + 1)` is degenerate — `first`/`last` are min/max over the same
+  intervals the numerator sums, so a single merged interval gives **1.000 by
+  construction**, at least 1,361 of 2,460 records. It silences AKNA (42.9%)
+  and NFYB
+  (36.8%) along with the GATA artifact it was meant to remove.
+
+Also corrected here: **BCL11A was mis-attributed.** An earlier draft called it
+a cost of `MAX_SPAN_FRACTION = 0.80` and "the one unambiguous regression". Its
+span is 79.8%, *under* the cap, and it was destroyed by the two changes
+themselves — the flank took it to 81.9%, and the ungated REGION rule promoted
+`REGION 737..835` and took it over 80% even at FLANK=6. It keeps its span in
+what shipped. The remedy the old text recorded (revert FLANK, lift the
+threshold) would not have restored it.
+
+The follow-up PR makes the flank invisible to all three gates — each measures
+the annotated feature extent rather than the padding — and re-measures from
+there.
+
 **[rev] Narrowed.** The first draft said "all three current gates are
 self-consistency checks" and that the validation "is circular". Only gate 2 is
-circular in the strict sense: its 7 `ANCHORS` (`06:413-421`) are commented as
+circular in the strict sense: its 9 `ANCHORS` (`06:754-765`, 7 of them until F5's follow-up) are commented as
 "Hand-checked spans from the fib->beta run (2026-09-03)", and
 `DBD_EXTRACTION_PLAN.md:271-272` calls the agreement "byte-identical to the
 by-hand extraction used for the fib→β constructs" — so it shows the script
-reproduces the hand method, not that either is right. Gates 1 (`06:443-465`) and
-3 (`06:498-527`) do test something real — span against annotated features — but
+reproduces the hand method, not that either is right. Gates 1 (`06:785-843`) and
+3 (`06:867-900`) do test something real — span against annotated features — but
 re-read the same cached feature table the extractor used, so none of the three
 reaches outside the pipeline's own inputs. That is the reviewer objection.
 

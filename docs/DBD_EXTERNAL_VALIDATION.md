@@ -185,6 +185,25 @@ second contact region at 663-666, 83 residues past a span ending at 580:
 | **+15 aa** | **80/97** | **24/30** |
 | +20 aa | 92/97 | 28/30 |
 
+**[corrected 2026-11-18] That table is a numeric sweep and overstates the
+gain.** It shifts the recorded boundaries arithmetically, so it applies neither
+the excluded-domain pull-back, nor the dispersed gate, nor the clamp to the
+sequence ends. Re-running `extract_one` at each value and re-scoring the same
+220 records gives:
+
+| FLANK | contacts recovered | full coverage | partial | zero | span lost entirely |
+|---|---|---|---|---|---|
+| 6 (then) | — | 185 | 30 | 5 | 0 |
+| 10 | 33/97 | 191 | 23 | 5 | 1 |
+| **15 (now)** | **63/97** | **199** | 15 | 5 | 1 |
+| 20 | 78/97 | 208 | 6 | 5 | 1 |
+
+The pull-back accounts for the whole difference: where a longer flank would
+reach toward an excluded domain it is shortened again, which is the behaviour
+that makes a larger FLANK safe in the first place. (These rows are the flank
+alone. The figures for all four changes together are in "What the four changes
+did, end to end" below.)
+
 Examples: GATA3 (3DFX) misses 348–365 with a span ending at 347; THRB (2NLL)
 misses 188–198 ending at 187; NR5A2 (5L0M) misses 161–173 ending at 160.
 
@@ -206,22 +225,209 @@ Only Rbpj and Ebf1 are genuine — the same two families arm 1 convicts.
 
 ## What this suggests, as tradeoffs rather than changes
 
+**All four were implemented on 2026-11-18.** Each entry below keeps what the
+recommendation said, then what implementing it actually showed — and in two
+cases the recommendation's own reasoning turned out to be wrong.
+
 1. **Revisit `IPT/TIG` as a keep hint.** 12 records rest on it, and both
    families where it is testable (EBF, RBPJ) are wrong by two independent
    measures. The cheapest fix is to stop treating `IPT/TIG` as DNA-binding on
    its own; the cost is that any protein where it genuinely participates loses
    its span and falls to `dbd_extraction='none'`.
+
+   **Done: removed from `KEEP_DOMAIN_HINTS`.** It changes **16** records, not
+   12, in three different ways, and the stated cost did not materialise.
+   - EBF1—4, RBPJ and RBPJL (12) lose their only keep-feature and are then
+     picked up by the Pfam fallback of item 2, so they end **extracted on the
+     right domain** rather than abstained. Recomputed from the deposited
+     coordinates: 3MLN puts **30 of 30** of Ebf1's DNA-contacting residues
+     inside the new 3—261 span, against **0 of 30** inside 256—351, and
+     3IAG puts **16 of 16** of Rbpj's inside 59—369 against **0 of 16**
+     inside 375—477. That is the same coordinate evidence that convicted
+     these spans, re-run; the fix does not rest on the Pfam family names that
+     motivated it. (Recomputed rather than read off the per-record table, whose
+     `missed` column is capped at 12 residues — these two and MBD4 are the
+     only records where that cap bites.)
+   - CAMTA1/2 (4) keep their annotated CG-1 `DNA_BIND` and shed a span that ran
+     all the way to an IPT/TIG 700 aa downstream: CAMTA1 goes from **57—959
+     (903 aa, flagged) to 48—203 (156 aa)**. Pfam names no DNA-binding family
+     anywhere in CAMTA, so neither arm had an opinion here; this is the
+     annotated DBD standing on its own once the hint stops bracketing past it.
+   - NFATC4 (2) shrinks from 395—689 to 386—585, dropping the IPT/TIG at
+     586—683. **This is the real cost.** Arm 2 found NFATC2 contacting DNA at
+     663—666, in the region its paralog annotates as IPT/TIG, so that
+     material is not inert. It is recorded as a limitation below rather than
+     preserved: keeping the hint meant keeping something wrong in 12 records in
+     order to be accidentally right in 2, and NFATC1/2/3 never had it —
+     their UniProt entries annotate only RHD.
 2. **28 chassis are recoverable** by adding the six Pfam families above to the
    keep rules — STAT most of all. The cost is that keep rules keyed on Pfam
    names need Pfam locations at extraction time, which is a new dependency for
    `06_extract_dbd.py` (the cache now exists, so it is a small one).
+
+   **Done, and the premise was wrong for 10 of the 28.** Checking each of the 28
+   against its own UniProt feature table, rather than against Pfam, splits them
+   three ways.
+   - **4 were already in the UniProt table, filed under a feature type this
+     script did not read.** HSF1 is `REGION 15..120; /note="DNA-binding
+     domain"` with experimental evidence; TP73 is `REGION 131..310;
+     /note="DNA-binding"`. That is why TP73 abstained while TP53 next door
+     extracts cleanly — TP53's is a `DNA_BIND` line. Fixed with
+     `KEEP_REGION_EXACT`, matched against the whole note and only at ≥ 40 aa:
+     UniProt writes the same words for per-residue contact footnotes (RBPJ has
+     three, 6—11 aa each) and for negations ("No DNA binding activity...",
+     p53's "Basic (repression of DNA-binding)"), so a substring rule would keep
+     all of them. Recovers 9 records in total — HSF1, TP73, PURB, LRRFIP1,
+     MLLT10 and orthologs.
+   - **6 were a naming gap in the zinc-finger whitelist.** A matrin-type finger
+     is C2H2-class — Pfam calls ZNF385A's "Zinc-finger of C2H2 type" — and
+     "matrin" was simply absent from `ZNF_KEEP_TYPES`. Recovers 8 records (the 6
+     plus ZNF318/Zfp318, which Pfam gives no DBD family at all) and costs
+     nothing: no existing span changes.
+   - **18 genuinely needed Pfam**, and for those the recommendation was right.
+     STAT1's entire feature table is one SH2 domain at 573—670. Implemented
+     as a fallback that runs only on abstention, never overriding a UniProt
+     keep-feature, writing `dbd_extraction='pfam'` so the provenance sits on the
+     record. It recovers 30 records: STAT 14, EBF/COE 8, GCFC2/PAXBP1 4,
+     RBPJ/CSL 4.
+
+   **Both new paths run only on abstention.** The REGION rule did not, in the
+   first attempt, and that was wrong in a way measurement caught and reasoning
+   had not: run unconditionally it edits 17 records that were never
+   abstentions, against the 9 it recovers. A REGION and a DOMAIN routinely
+   annotate the *same* module, so `dna and keep_dom` then fires and relabels
+   one module as `bipartite` — ARNT's `REGION 88..128 "DNA-binding"` sits
+   inside its own bHLH at 89..142, TFCP2's inside its CP2 domain, PRDM9's
+   inside its own C2H2 array. `bipartite` drives the ZnF pitch check, the
+   review-queue rank and the per-kind tables in this report, so a false one is
+   not cosmetic. ARID4A was the worst single case: `REGION 4..121` plus
+   `DOMAIN 309..401 "ARID"`, 188 disordered residues apart, bracketed into a
+   416-aa span at 53% coverage — three points above the gate, so
+   `dbd_review_flag = 0`. Gated to abstention, all 17 keep their old spans.
+
+   The rule's whitelist is also smaller than first written. Of six entries only
+   two can ever fire: measured across all 2,818 cached feature tables,
+   `"dna-binding"` appears as a whole note 45 times (17 at ≥ 40 aa) and
+   `"dna-binding domain"` twice, while the unhyphenated `"dna binding"` and
+   `"dna binding domain"` never appear as a whole note at all. The
+   unhyphenated spelling does occur, 10 times, but only inside a longer
+   sentence ("Required for DNA binding", "No DNA binding activity...") that an
+   exact match correctly refuses — and every
+   `"dna-binding; minor groove"` (4) and `"dna-binding; major groove"` (2) is a
+   per-residue footnote under the 40-aa floor. The four dead entries were
+   removed rather than left implying a coverage the rule does not have.
+
+   One cost stands, recorded rather than fixed: the rule has a lower bound and
+   no upper one, so MLLT10's `REGION 311..674` — 364 aa, UniProt's own
+   annotation — becomes a 376-aa `dna_bind` span that clears every gate with
+   `dbd_review_flag = 0`. It is the rule's largest effect and the justifying
+   comment cited only HSF1 (106 aa), TP73 (180 aa) and PURB (227 aa). Rather
+   than invent a threshold, every promoted-REGION span now enters the review
+   queue whether flagged or not.
+
+   All 28 are now extracted. The dependency is a cached read rather than a
+   fetch: with `data/raw/interpro/` empty the fallback is inert and those
+   records abstain exactly as before — which is why `ANCHORS` now pins EBF1,
+   since an empty cache would otherwise switch the rule off in silence.
 3. **`FLANK = 6` trims real DNA contacts.** Raising it to 15 completes 24 of the
    30 partial records; 20 completes 28. The cost is construct length and a
    greater chance of reaching toward an excluded domain — the existing
    pull-back already guards the latter, and the former is real for AAV cargo.
+
+   **Not done. `FLANK` stays 6, and the change was split into its own PR
+   after an audit of the first attempt.** `FLANK = 15` was implemented and
+   measured, and the measurement is why it is not here: FLANK sits in the
+   *numerator* of all three gates, so raising it loosens every one of them at
+   once. The first attempt corrected one of the three and left the other two,
+   which produced a library that was simultaneously too permissive and too
+   strict.
+
+   - **Too permissive.** `MIN_PLAUSIBLE_SPAN_AA = 40` measures the flanked
+     span, so 30 aa of padding carries a span over it with no change in
+     evidence. Spans under the 40-aa floor fell **27 —> 5**, so 22 records
+     left the set acceptance gate 1 inspects, and 31 records flagged on `main`
+     come back unflagged. KMT2C is the clearest: a 4,911-aa protein whose sole
+     DNA-binding annotation is `DNA_BIND 34..46 "A.T hook"`, 13 residues,
+     emitted at FLANK=15 as a 43-aa span with `dbd_review_flag = 0`. AHCTF1 is
+     the same shape. This also hollows out acceptance gate 1, which fails the
+     run if any span under 40 aa is unflagged: those 22 records are now 43—56
+     aa, so the gate passed while reporting "5 spans under 40 aa".
+   - **Too strict.** `MAX_SPAN_FRACTION` / `MAX_SPAN_AA` measure the flanked
+     span too, so 14 records lost their span to padding alone — BCL11A,
+     TSHZ2/3, ZNF420, ZNF433, ZNF469, ZNF48, ZNF595, ZNF780B, ZNF99, Zfp553,
+     Zfp865 and orthologs. ZNF469 shows what that is worth: a 983-aa span at
+     **24.9%** of its 3,953-aa protein, dropped because 983 + 18 crosses the
+     1,000-aa cap, by a gate whose stated rationale is "the span is the
+     protein".
+   - **And the one gate that was corrected went too far.** The denominator was
+     changed from the flanked span to the feature-bracketed region, which
+     removes the flank dependency but is degenerate: `first`/`last` are
+     min/max over the same intervals the numerator sums, so a single merged
+     interval makes coverage **1.000 by construction** — at least 1,361 of
+     2,460 records by direct count. It stops measuring how much of the span is feature and measures
+     only whether the features are fragmented. MECP2, HMGA2 and INSM1 (48—50%)
+     lose the flag with the artifact, and so do AKNA (42.9%) and NFYB (36.8%),
+     which are not artifacts.
+
+   The follow-up PR makes the flank invisible to all three gates — each
+   measures the annotated feature extent, never the padding — and re-measures
+   from there. The corrected sweep table above still stands as the motivation:
+   63 of 97 contacts and 185 —> 199 full-coverage records are what a correct
+   FLANK=15 is worth once the gates no longer see the flank.
 4. **`domain` is the weakest kind** on both arms (93% recall ≥0.95; 40/51 full
    contact coverage), which is the kind whose spans rest on `KEEP_DOMAIN_HINTS`
    alone. If review effort is finite, spend it there.
+
+   **Done:** `06_extract_dbd.py` writes `data/processed/dbd_review_queue.tsv`,
+   ordered `pfam` —> `domain` —> `bipartite` —> `znf_array` —>
+   `dna_bind` —> `dispersed`. `pfam` goes first because arm 1 cannot check it:
+   those spans *are* Pfam, so the comparison is circular, and nothing has ever
+   reviewed them.
+
+   The queue holds flagged records **plus every span whose provenance is a
+   source this script did not use before**, flagged or not. Filtering to
+   flagged records only — the first attempt — left 21 of the 30 `pfam` spans
+   out of the queue entirely, which empties the reason for ranking `pfam`
+   first. 472 records: 30 `pfam`, 36 `domain`, 63 `bipartite`, 137
+   `znf_array`, 89 `dna_bind`, 117 `dispersed`.
+
+## What the three shipped changes did, end to end
+
+Recommendations 1, 2 and 4, at `FLANK = 6`. Measured by running the new
+`extract_one` over the same 2,818 extractable DBD records.
+
+| | before | after |
+|---|---|---|
+| records with a span | 2,439 | **2,474** |
+| `dbd_extraction='none'` | 262 | **227** |
+| `dbd_extraction='dispersed'` | 117 | 117 |
+| `dbd_review_flag = 1` | 352 | **361** |
+| spans under 40 aa, unflagged | 0 | 0 |
+| median span | 103 aa | 104 aa |
+| total span residues | 448,411 | 453,790 |
+
+**No record loses a span.** 35 abstentions gain one (18 `pfam`, 9 `dna_bind`
+via the REGION rule, 8 `znf_array` via `"matrin"`); 12 move onto a different
+domain (EBF1—4, RBPJ/RBPJL and orthologs, via the Pfam fallback); 6 shrink
+(CAMTA1/2, NFATC4 and orthologs, from dropping `ipt/tig`); the other 2,765 are
+byte-identical to `main`. Review flags rise by 9 rather than falling, which is
+the honest direction: eight of the EBF spans carry a `ZnF:C5-type` overlapping
+the new boundary, and that is worth a look.
+
+All three acceptance gates pass against the new spans: 9/9 anchors (`ANCHORS`
+gained HSF1 for the REGION rule and EBF1 for the Pfam fallback, so neither can
+go inert in silence), 27 spans under 40 aa of which **0 unflagged**, 0 spans
+reaching into a KRAB, 0 spans too short for their finger count, and 0 `pfam`
+spans carrying a zinc-finger count they have no evidence for.
+
+**Arm 2 has not been re-run for this configuration.** The `185 —> 201`
+figure quoted earlier in this report was measured at `FLANK = 15`, which is no
+longer what the script does. What is independently verified is the direction of
+the EBF/RBPJ re-anchoring: at FLANK=15 the cached coordinates of 3MLN put
+30 of 30 Ebf1 DNA contacts inside the new span against 0 of 30 before, and 3IAG
+16 of 16 for Rbpj against 0 of 16. The shipped spans are 8—9 residues
+narrower at each end (Ebf1 12—253 rather than 3—261; Rbpj 42—334 rather
+than 33—343), so the counts need re-measuring before they are quoted again.
 
 ## Limitations
 
@@ -233,6 +439,27 @@ Only Rbpj and Ebf1 are genuine — the same two families arm 1 convicts.
   as 3 of the 5 zero-coverage cases show. Zero coverage is a prompt to look, not
   a verdict.
 - Two accessions failed the InterPro fetch and are absent from arm 1.
+- **NFAT needs a keep rule of its own.** Arm 2 puts NFATC2 contacts at
+  663—666, past a span ending at 580, and UniProt annotates that region as
+  IPT/TIG in NFATC4 and as nothing at all in NFATC1/2/3. All four now stop at
+  the RHD, so the family is at least consistent and all four are missing the
+  same material. No rule here reaches it: the region is unannotated in three of
+  the four entries, and Pfam calls it "Rel homology dimerisation domain", which
+  the fallback would keep — but the fallback runs only on abstention, and
+  these records have a span from RHD.
+- **`MAX_SPAN_FRACTION = 0.80` sits at the boundary for at least one real
+  chassis.** BCL11A's span is 666 aa, **79.8%** of the protein, and arm 2 found
+  all 17 of its mapped DNA contacts (6U9Q, 1.83 Å) inside it — a verified
+  span two tenths of a percent under the cap. It keeps that span here, and an
+  earlier draft of this report was wrong about why it might not: it listed
+  BCL11A as a cost of `MAX_SPAN_FRACTION` and said the remedy was to revert
+  FLANK or lift the threshold. In fact *both* of the first attempt's changes
+  destroyed it independently — the flank pushed it to 81.9%, and the
+  then-ungated REGION rule promoted `REGION 737..835 "DNA-binding"`, dragging
+  the span to the C-terminus and over 80% even at FLANK=6. Neither is a
+  property of the threshold. The record stands as the reason to measure the
+  gates against the feature extent rather than the padded span, which is what
+  the FLANK follow-up does.
 - Contacts are computed on the deposited coordinates of one chain mapping, with
   no symmetry expansion, so a contact made only by a crystallographic neighbour
   is not counted.
@@ -249,3 +476,11 @@ python scripts/07_validate_dbd_external.py --pdb --limit 220   # arm 2
 Per-record tables land in `data/processed/dbd_external_validation.tsv` and
 `data/processed/dbd_pdb_contact_validation.tsv` (both gitignored; this report is
 the committed artefact).
+
+Note the ordering, now that the extraction has a Pfam fallback: `--fetch`
+populates `data/raw/interpro/`, and `06_extract_dbd.py` reads that cache. Run
+the fetch **before** the extraction on a fresh checkout, or 18 records (the
+STAT family among them) will abstain and gate 2's EBF1 anchor will fail. The
+numbers in this report describe the spans as they were *before* the four
+changes above; re-running `--report` and `--pdb` after an extraction re-scores
+them.

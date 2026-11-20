@@ -33,10 +33,29 @@ ft_region), fetched in batches and cached per accession.
         - Partner domains that form part of the interface (KEEP_DOMAIN_HINTS).
           HNF1A binds as a bipartite POU-specific + homeodomain unit, so taking
           the homeobox alone would remove half the interface.
+        - On abstention only: a REGION whose note NAMES it as the
+          DNA-binding module and is long enough to be one (KEEP_REGION_EXACT).
+          HSF1 and TP73 file their DBD this way; reading only the first three
+          feature types abstained on them while TP53 next door extracted
+          cleanly from a DNA_BIND line. 9 records, all `dna_bind`.
   DROP  everything else, explicitly including KRAB, SCAN, BTB/POZ and
         interaction/activation regions.
 
 Then span = min(start) - FLANK .. max(end) + FLANK, clamped to the sequence.
+
+When the feature table yields NO keep-feature at all, the two fallbacks run
+in order: a self-naming REGION first, then Pfam (scripts/pfam_dbd.py, cached
+under data/raw/interpro/). Both are gated on abstention, so neither can
+override a UniProt keep-feature, and a Pfam-derived span is marked
+`dbd_extraction='pfam'`. STAT1's whole feature table is one SH2 domain, so
+without this the entire STAT family abstained.
+
+Neither fallback changes a span that already existed: measured over the 2,818
+extractable records, 35 abstentions gain a span (18 Pfam, 9 REGION, 8 from
+"matrin" joining ZNF_KEEP_TYPES), 18 change because 'ipt/tig' left
+KEEP_DOMAIN_HINTS, and nothing else moves. FLANK is deliberately unchanged at
+6; raising it is a separate change, because FLANK sits in the numerator of all
+three gates below.
 
 Rules that matter
 -----------------
@@ -47,20 +66,32 @@ Rules that matter
    `dbd_review_flag` is set and the offender named in `dbd_excluded_domains`.
 3. Never fabricate boundaries. No usable features -> `dbd_extraction='none'` and
    the DBD columns stay NULL. A guessed domain is worse than an honest
-   full-length record.
+   full-length record. Rule 7 does not weaken this: a Pfam HMM match is a
+   measurement, not a guess, and it is labelled as a different source.
 4. Additive. `sequence_aa` is not touched; the original is also copied to
    `sequence_full_aa` so consumers can migrate deliberately.
 5. A span is a DOMAIN, not a protein. `min(start)..max(end)` over two distant
    features can sweep up almost the whole chain -- ZNF462 extracted 2,442 aa of
    2,506 -- which is not an extraction, it is a relabelling. Spans that large
    get `dbd_extraction='dispersed'` and no span columns, and implausibly short
-   ones are flagged (see MAX_SPAN_FRACTION / MIN_PLAUSIBLE_SPAN_AA).
+   ones are flagged (see MAX_SPAN_FRACTION / MIN_PLAUSIBLE_SPAN_AA). Both
+   gates measure the FLANKED span, so FLANK cannot be raised without moving
+   them -- which is why it is not raised here.
 6. Say what was dropped. Every residue outside the kept span is recorded in
    `dbd_dropped_regions`, labelled from the feature table where UniProt names
    it, and `dbd_dropped_review_flag` is set when the dropped material looks
    like a self-association or repeat module. No keep rule changes: whether such
    a module belongs in a construct is a biology question, and the pipeline's
    job is only to stop dropping it silently.
+7. One source per span, named. The UniProt feature table is tried first,
+   then a self-naming REGION, then Pfam, each only on abstention, so a span
+   never mixes two sources and `dbd_extraction` says which answered. 30
+   records are 'pfam': STAT (14), EBF/COE (8), GCFC2/PAXBP1 (4), RBPJ/CSL (4).
+   A promoted REGION reads as `dna_bind`, because that is the assertion
+   UniProt made, on a feature line this script did not read; the
+   `region_promoted` column of the report carries the provenance, and both
+   sources enter data/processed/dbd_review_queue.tsv whether flagged or not,
+   since neither has ever been reviewed.
 
 Run
 ---
@@ -70,6 +101,11 @@ Run
   python scripts/06_extract_dbd.py --validate   # the three acceptance gates
 
 Cost: offline apart from the feature fetch (~30 batched requests); minutes, no GPU.
+
+The Pfam fallback (rule 7) reads data/raw/interpro/, which
+scripts/07_validate_dbd_external.py --fetch populates. Without that cache the
+fallback is inert and those records abstain as they did before -- so a fresh
+checkout should run the fetch once before the extraction.
 """
 
 from __future__ import annotations
@@ -86,6 +122,7 @@ import requests
 import yaml
 
 sys.path.insert(0, str(Path(__file__).parent))
+from pfam_dbd import dbd_domains
 from schema import ModuleLibrary
 from utils import get_logger
 
@@ -95,6 +132,12 @@ RAW_DIR = ROOT / "data" / "raw"
 PROCESSED_DIR = ROOT / "data" / "processed"
 DB_PATH = ROOT / "library" / "module_library.db"
 
+# Arm 2 of the external validation argues this should be larger -- 93 of the
+# 97 contacts missed by a partial span lie within 30 aa of an edge. Raising it
+# is NOT done here: FLANK is in the numerator of the three gates below, so
+# padding the span loosens all of them at once (a 13-aa A.T hook clears the
+# 40-aa floor on padding alone). That is its own change, with its own
+# measurement; see docs/DBD_EXTERNAL_VALIDATION.md "recommendation 3".
 FLANK = 6
 BATCH = 100          # accessions per UniProt search request
 MIN_SPAN_COVERAGE = 0.5   # below this, the span is mostly not DNA-binding feature
@@ -177,10 +220,38 @@ KEEP_DOMAIN_HINTS = (
     "pou-specific", "pou domain", "homeobox", "homeo",
     "bhlh", "bzip", "leucine zipper", "basic motif",
     "hmg box", "fork-head", "forkhead", "t-box",
-    "myb-like", "myb-type", "sant", "mads-box", "ipt/tig",
+    "myb-like", "myb-type", "sant", "mads-box",
     "grh/cp2", "cold-shock", "at-hook", "ap2/erf",
     "nuclear receptor", "nr c4-type", "cenp-b",
 )
+# F5 recommendation 1 -- "ipt/tig" was on the list above and is not.
+#
+# IPT/TIG is a DNA-binding module in the Rel family, where it is the RHD's
+# C-terminal half, and a protein-interaction module elsewhere. Both arms of the
+# external validation convict it independently in the two families where it is
+# testable: EBF1-4 and RBPJ/RBPJL rest their whole span on an IPT/TIG match,
+# Pfam puts their DNA-binding domain somewhere else entirely (COE1 DNA-binding
+# domain; Beta-trefoil/LAG1), and the two solved complexes that exist -- 3MLN
+# "DNA binding domain of Early B-cell Factor 1 bound to DNA" and 3IAG "CSL
+# bound to HES-1" -- put ZERO of their DNA contacts inside the span.
+#
+# Removing it changes 18 records, in three different ways:
+#   * EBF1-4, RBPJ, RBPJL (12, both species) lose their only keep-feature. The
+#     Pfam fallback below then gives them the right span, so they end up
+#     EXTRACTED rather than abstained -- EBF1 12-253, RBPJ 42-334.
+#   * CAMTA1/2 (4) keep their CG-1 DNA_BIND and shed a span that ran to the
+#     IPT/TIG 700 aa downstream: CAMTA1 goes from 57-959 (903 aa, flagged) to
+#     57-194, and from `bipartite` to `dna_bind` -- the CG-1 is the only
+#     DNA-binding feature left. Pfam names no DNA-binding family in CAMTA at
+#     all, so this is the annotated DBD standing on its own.
+#   * NFATC4 (2) shrinks from 395-689 to 395-585, dropping the IPT/TIG at
+#     586-683 (585, not 588, because the flank is pulled back to the excluded
+#     domain's edge). This is the cost, and it is real: arm 2 found NFATC2 contacting
+#     DNA at 663-666, in the region its paralog annotates as IPT/TIG. It also
+#     makes NFATC4 consistent with NFATC1/2/3, whose UniProt entries annotate
+#     only RHD and whose spans never reached that region. The NFAT family needs
+#     a keep rule of its own, not an accident that covered 1 of 4 paralogs;
+#     recorded as a limitation in docs/DBD_EXTERNAL_VALIDATION.md.
 
 # Short domain names that must match the WHOLE description, not a substring of
 # it: 'tea' is inside 'Protease' and 'rel' inside 'Related', so substring
@@ -189,6 +260,40 @@ KEEP_DOMAIN_HINTS = (
 KEEP_DOMAIN_EXACT = frozenset({
     "tea", "ets", "rhd", "mh1", "mbd", "cut", "pax", "sand", "csd",
     "cbf", "runt", "stat", "tbp", "gcm", "arid", "psq", "hth psq-type",
+})
+
+# F5 recommendation 2, part 1. UniProt files some DNA-binding domains as
+# REGION rather than DNA_BIND or DOMAIN, and this script read three of the four
+# feature types -- so the DBD was in the table and the extraction abstained.
+# HSF1's is `REGION 15..120; /note="DNA-binding domain"` with experimental
+# evidence (ECO:0000269|PubMed:7935471), and TP73's is `REGION 131..310;
+# /note="DNA-binding"` -- which is why TP53 extracts cleanly from a DNA_BIND
+# line and its paralog next door did not.
+#
+# Matched against the WHOLE cleaned note, never as a substring. UniProt also
+# writes "No DNA binding activity or transactivation activity..." and p53's
+# "Basic (repression of DNA-binding)", both of which contain the substring and
+# assert the opposite.
+#
+# MIN_PLAUSIBLE_SPAN_AA is applied as well, because the same note text does two
+# different jobs: a single substantial region naming the DBD (HSF1 106 aa,
+# TP73 180 aa, PURB 227 aa), and a per-residue contact footnote. RBPJ carries
+# three of the latter -- `REGION 57..67`, `165..170`, `192..197` -- and keeping
+# those as boundaries produced a 401-aa span covering 80% of the protein.
+# "Interaction with DNA" (76 occurrences) is excluded for the same reason it is
+# excluded from the hazard list: those are contacts inside a DBD already found.
+#
+# Only the two hyphenated forms are kept. Measured over all 2,818 cached
+# feature tables: "dna-binding" appears as a whole note 45 times (17 at >= 40
+# aa) and "dna-binding domain" twice (both >= 40 aa), while the unhyphenated
+# "dna binding"/"dna binding domain" never appear as a whole note at all --
+# unhyphenated spelling does occur (10 times) but only inside a longer
+# sentence ("Required for DNA binding"), which an exact match refuses. Every
+# "dna-binding; minor groove" (4) and "dna-binding; major groove" (2) is a
+# per-residue footnote under the 40-aa floor. Carrying them would have implied
+# a coverage this rule does not have.
+KEEP_REGION_EXACT = frozenset({
+    "dna-binding", "dna-binding domain",
 })
 
 # Not every zinc finger binds DNA. PHD, RING, ZZ, SP-RING, RanBP2 and MYND
@@ -200,7 +305,14 @@ KEEP_DOMAIN_EXACT = frozenset({
 #
 # So ZN_FING features are WHITELISTED by their /note, not taken wholesale.
 # Everything not named here is recorded as an excluded feature instead.
-ZNF_KEEP_TYPES = ("c2h2", "nr c4", "gata", "thap", "bed")
+#
+# F5 recommendation 2, part 2: "matrin" is on the list. A matrin-type finger is
+# a C2H2-class finger -- Pfam calls ZNF385A's and Zmat3's "Zinc-finger of C2H2
+# type" and CIZ1's "CIZ1-like, C2H2-type zinc finger" -- and omitting the name
+# abstained on 8 records whose only annotated features were matrin fingers
+# (CIZ1, ZNF318, ZNF385A/B, Zfp318, Zfp385a, Zmat1, Zmat3). Adding it costs no
+# existing span: no record loses or changes one.
+ZNF_KEEP_TYPES = ("c2h2", "nr c4", "gata", "thap", "bed", "matrin")
 
 # Domains that must never ride along on a fusion. KRAB/SCAN/BTB recruit their own
 # corepressors; carrying one into an opener is the failure this script exists for.
@@ -434,10 +546,14 @@ def classify_domain(note: str) -> str:
     return "other"
 
 
-def extract_one(seq: str, feats: dict) -> dict:
+def extract_one(seq: str, feats: dict, acc: str | None = None) -> dict:
     """
     Compute the DNA-binding span for one record. Returns a dict of the DBD
     columns; `dbd_extraction='none'` when no keep-feature was found.
+
+    `acc` is only used for the Pfam fallback: with no accession, or with no
+    cached Pfam entry for it, a record with no UniProt keep-feature abstains
+    exactly as before.
     """
     zn, dropped = [], []
     for s, e, note in feats.get("ZN_FING", []):
@@ -454,14 +570,54 @@ def extract_one(seq: str, feats: dict) -> dict:
             dropped.append((note or "?", s, e))
 
     spans = zn + dna + keep_dom
+
+    # F5 recommendation 2, part 1: a REGION whose note NAMES it as the
+    # DNA-binding module counts as a keep-feature (see KEEP_REGION_EXACT).
+    # Treated as DNA_BIND, because it is the same assertion UniProt makes on a
+    # DNA_BIND line, filed under a feature type this script did not read.
+    #
+    # ONLY on abstention, for the same reason the Pfam fallback below is. Run
+    # unconditionally it edits spans that were never abstentions -- 17 records,
+    # against the 9 it recovers -- and because a REGION and a DOMAIN routinely
+    # annotate the SAME module, `dna and keep_dom` then relabels one module as
+    # `bipartite`: ARNT's REGION 88..128 "DNA-binding" sits inside its bHLH
+    # 89..142, TFCP2's inside its CP2 domain, PRDM9's inside its own C2H2
+    # array. `bipartite` drives the pitch check, the review-queue rank and the
+    # per-kind validation tables, so a false one is not cosmetic.
+    region_promoted = False
     if not spans:
-        # No kept span, so the extraction dropped nothing: fuse.py falls back to
-        # the full-length record, which is F1's problem, not F7's.
-        return {"dbd_extraction": "none", "dbd_start": None, "dbd_end": None,
-                "dbd_sequence_aa": None, "dbd_length_aa": None,
-                "dbd_excluded_domains": None, "dbd_review_flag": 0,
-                "dbd_dropped_regions": None, "dbd_dropped_review_flag": 0,
-                "dbd_zinc_finger_count": None, "n_znf": len(zn)}
+        promoted = [(s, e) for s, e, note in feats.get("REGION", [])
+                    if " ".join((note or "").split()).lower().rstrip(".")
+                    in KEEP_REGION_EXACT
+                    and (e - s + 1) >= MIN_PLAUSIBLE_SPAN_AA]
+        if promoted:
+            dna = promoted
+            spans = promoted
+            region_promoted = True
+
+    pfam_families: list[str] = []
+    if not spans:
+        # F5 recommendation 2, part 3: the UniProt feature table names nothing
+        # usable. Ask Pfam before abstaining. This recovers 30 records -- the
+        # whole STAT family (14), EBF/COE (8), GCFC2/PAXBP1 (4) and RBPJ/CSL (4)
+        # -- and for STAT1 there is nothing else to go on: its entire feature
+        # table is one SH2 domain at 573-670.
+        #
+        # ONLY on abstention. Pfam never overrides a UniProt keep-feature, so
+        # every span that exists today is unaffected, and `dbd_extraction` is
+        # set to 'pfam' so no consumer can mistake the provenance. The Pfam
+        # family names are written to data/processed/dbd_extraction_report.tsv;
+        # they are not a library column.
+        hit = dbd_domains(acc) if acc else None
+        if hit is None:
+            # No kept span, so the extraction dropped nothing: fuse.py falls
+            # back to the full-length record, which is F1's problem, not F7's.
+            return {"dbd_extraction": "none", "dbd_start": None, "dbd_end": None,
+                    "dbd_sequence_aa": None, "dbd_length_aa": None,
+                    "dbd_excluded_domains": None, "dbd_review_flag": 0,
+                    "dbd_dropped_regions": None, "dbd_dropped_review_flag": 0,
+                    "dbd_zinc_finger_count": None, "n_znf": len(zn)}
+        spans, pfam_families = hit
 
     first, last = min(s for s, _ in spans), max(e for _, e in spans)
     lo = max(1, min(first - FLANK, len(seq)))
@@ -522,6 +678,15 @@ def extract_one(seq: str, feats: dict) -> dict:
     # when nothing named lands inside it: MGA extracts 78-2480 (2,403 aa of a
     # 3,065-aa protein) because two distant keep-features bracket the whole
     # middle. Gate 1 only catches spans that are too SHORT.
+    #
+    # The denominator is the stored span. Dividing by the feature-bracketed
+    # region instead was tried with FLANK=15 and is a trap: `first`/`last` are
+    # min/max over `spans` and the numerator sums _merge(spans), so a single
+    # merged interval makes the two identical and the gate reads 1.000 by
+    # construction -- at least 1,361 of 2,460 records. It would stop
+    # measuring how much
+    # of the span is feature and start measuring only whether the features are
+    # fragmented. Both that change and FLANK belong to the same follow-up.
     covered = sum(e - s + 1 for s, e in _merge(spans))
     coverage = covered / len(sub)
     if coverage < MIN_SPAN_COVERAGE:
@@ -534,7 +699,9 @@ def extract_one(seq: str, feats: dict) -> dict:
         inside.append(f"span {len(sub)} aa, under the "
                       f"{MIN_PLAUSIBLE_SPAN_AA}-aa minimum for a DNA-binding module")
 
-    if zn and (dna or keep_dom):
+    if pfam_families:
+        kind = "pfam"
+    elif zn and (dna or keep_dom):
         kind = "bipartite"
     elif zn:
         kind = "znf_array"
@@ -564,10 +731,18 @@ def extract_one(seq: str, feats: dict) -> dict:
         # ZN_FING feature over the whole protein, PHD/RING/FOG-type included, so
         # af3.py added Zn ions for fingers the construct does not contain --
         # ZFPM2 claims 8 for a 102-aa span of a 1,151-aa protein.
-        "dbd_zinc_finger_count": len(zn),
+        #
+        # None, not 0, when the span did not come from the UniProt feature
+        # table: a Pfam-derived span is positioned by a source that says
+        # nothing about ZN_FING, and PFAM_DBD_HINTS does name C2H2 families, so
+        # a 0 here would assert "no fingers in this span" on no evidence and
+        # suppress af3.py's warn-and-fall-back to the protein-wide count.
+        "dbd_zinc_finger_count": None if pfam_families else len(zn),
         "n_znf": len(zn),
         "_inside": inside,
         "_dropped_flagged": dropped_flagged,
+        "_pfam_families": pfam_families,
+        "_region_promoted": region_promoted,
     }
 
 
@@ -594,8 +769,16 @@ def survey(rows, features, log) -> None:
             by_verdict[v] += 1
             if v == "other":
                 unknown[note] += 1
+        # Must name every keep path extract_one has, or --survey reports
+        # abstentions the run does not make. The Pfam fallback is not checked
+        # here: it needs the interpro cache, and survey() is a feature-table
+        # report, so STAT/EBF/RBPJ/GCFC2 still appear below as "no keep
+        # feature" -- true of the UniProt table, which is what this surveys.
         if not (feats.get("ZN_FING") or feats.get("DNA_BIND")
-                or any(classify_domain(n) == "keep" for _, _, n in feats.get("DOMAIN", []))):
+                or any(classify_domain(n) == "keep" for _, _, n in feats.get("DOMAIN", []))
+                or any(" ".join((n or "").split()).lower().rstrip(".") in KEEP_REGION_EXACT
+                       and (e - st + 1) >= MIN_PLAUSIBLE_SPAN_AA
+                       for st, e, n in feats.get("REGION", []))):
             families_none[fam] += 1
 
     log.info(f"[survey] DOMAIN verdicts: {dict(by_verdict)}")
@@ -612,7 +795,10 @@ def survey(rows, features, log) -> None:
 
 # Hand-checked spans from the fib->beta run (2026-09-03), used as a regression
 # fixture. If a keep-list edit moves one of these, that is a deliberate decision
-# to be re-justified, not a silent drift.
+# to be re-justified, not a silent drift. The coordinates are FLANK-dependent,
+# which makes this a drift detector rather than independent evidence -- arm 1
+# and arm 2 of docs/DBD_EXTERNAL_VALIDATION.md supply that. The point here is
+# that these nine spans cannot change without someone noticing.
 ANCHORS = {
     "HNF1A":  (81, 285),
     "EGR3":   (269, 361),
@@ -624,9 +810,14 @@ ANCHORS = {
     # and a 900-aa chassis was never usable anyway -- ~980 aa of fusion, ~2.9 kb
     # against a ~4.7 kb AAV cargo (DBD_EXTRACTION_PLAN.md "Still open").
     "ZNF850": "dispersed",
-    "ZNF540": (181, 660),
+    "ZNF540": (181, 660),     # the end is the C-terminus
     "ZNF444": (173, 306),
     "HINFP":  (9, 374),
+    # The two rules F5 added, each with the record that motivated it, so neither
+    # can go silently inert -- which is the real risk for the Pfam fallback,
+    # since an empty data/raw/interpro/ turns it off without any error.
+    "HSF1":   (9, 126),       # DNA-binding REGION 15..120, flanked
+    "EBF1":   (12, 253),      # Pfam fallback: COE1 DNA-binding domain
 }
 
 KRAB_HINT = "krab"
@@ -834,7 +1025,7 @@ def main() -> None:
                    "dbd_zinc_finger_count": None,
                    "n_znf": 0, "_inside": []}
         else:
-            res = extract_one(seq, parse_features(line))
+            res = extract_one(seq, parse_features(line), acc)
 
         kinds[res["dbd_extraction"]] += 1
         by_family[_family(r)][res["dbd_extraction"]] += 1
@@ -864,6 +1055,14 @@ def main() -> None:
             "dropped_regions": res["dbd_dropped_regions"],
             "dropped_review_flag": res["dbd_dropped_review_flag"],
             "dropped_needs_review": ";".join(res.get("_dropped_flagged", [])) or None,
+            # Provenance for the Pfam fallback: `dbd_extraction='pfam'` says a
+            # span came from Pfam, this says which families it came from. Kept
+            # here rather than in a library column.
+            "pfam_families": "; ".join(res.get("_pfam_families", [])) or None,
+            # Same purpose for the other new source: `dbd_extraction` cannot
+            # carry it, because a promoted REGION is recorded as `dna_bind` --
+            # which is exactly what UniProt asserted, on the wrong feature line.
+            "region_promoted": 1 if res.get("_region_promoted") else 0,
         })
 
     log.info(f"[extract] by kind: {dict(kinds)}")
@@ -880,6 +1079,16 @@ def main() -> None:
              f"retryable), dispersed {kinds['dispersed']:,} (span would have "
              f"been >= {MAX_SPAN_FRACTION:.0%} of the protein and "
              f">= {MIN_DISPERSED_SPAN_AA} aa, or >= {MAX_SPAN_AA} aa)")
+    pfam_rows = [x for x in report if x["dbd_extraction"] == "pfam"]
+    if pfam_rows:
+        fams = Counter(x["pfam_families"] for x in pfam_rows)
+        log.info(f"[extract] {len(pfam_rows):,} spans came from the Pfam "
+                 f"fallback (no UniProt keep-feature); by family: "
+                 f"{dict(fams.most_common(8))}")
+    else:
+        log.info("[extract] no Pfam fallback spans. If that is unexpected, the "
+                 "cache is missing: run scripts/07_validate_dbd_external.py "
+                 "--fetch to populate data/raw/interpro/.")
     short = sum(1 for x in report
                 if x["inside_kept_span"] and "-aa minimum" in x["inside_kept_span"])
     log.info(f"[extract] {short:,} spans under {MIN_PLAUSIBLE_SPAN_AA} aa flagged")
@@ -892,6 +1101,33 @@ def main() -> None:
     out = PROCESSED_DIR / "dbd_extraction_report.tsv"
     pd.DataFrame(report).to_csv(out, sep="\t", index=False)
     log.info(f"[extract] wrote {out}")
+
+    # F5 recommendation 4. Both arms of the external validation rank the kinds
+    # the same way, and `domain` is last on both: recall >= 0.95 for 93% of
+    # records against 98-99% for the others, and 40 of 51 with full contact
+    # coverage against 91/97 for dna_bind. That is the kind whose boundaries
+    # rest on KEEP_DOMAIN_HINTS alone, with no DNA_BIND or ZN_FING line under
+    # them. `pfam` ranks ahead of it only because arm 1 cannot check it at all
+    # -- those spans ARE Pfam, so the comparison is circular, and they have
+    # never been reviewed. Flagged records only; the order is the whole point,
+    # so this is a separate file rather than a column on the report.
+    priority = {"pfam": 1, "domain": 2, "bipartite": 3, "znf_array": 4,
+                "dna_bind": 5, "dispersed": 6, "none": 7, "no_features": 8}
+    # Flagged records, PLUS every span whose provenance is a source this
+    # script did not use before, flagged or not. Ranking `pfam` first because
+    # arm 1 cannot check it is empty if 21 of its 30 spans never enter the
+    # queue; the same holds for a promoted REGION, whose largest effect
+    # (MLLT10, a 364-aa REGION) clears every gate.
+    queue = [dict(x, review_priority=priority.get(x["dbd_extraction"], 9))
+             for x in report
+             if x["review_flag"] or x["dropped_review_flag"]
+             or x["dbd_extraction"] == "pfam" or x["region_promoted"]]
+    queue.sort(key=lambda x: (x["review_priority"], x["gene_symbol"] or ""))
+    qout = PROCESSED_DIR / "dbd_review_queue.tsv"
+    pd.DataFrame(queue).to_csv(qout, sep="\t", index=False)
+    log.info(f"[extract] wrote {qout}: {len(queue):,} records to review, "
+             f"worst kind first "
+             f"({dict(Counter(x['dbd_extraction'] for x in queue))})")
 
     if args.dry_run:
         log.info("[dry-run] library not modified")
