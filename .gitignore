@@ -14,6 +14,11 @@ __pycache__/
 /module_library.tsv
 /review_*.md
 
+# Working diagram, kept locally. It was committed by accident on 2026-11-18
+# (a `git add -A docs` in the F8/F10 change swept up an untracked file) and
+# untracked again the next day. Delete this line to version it deliberately.
+docs/ecr_mod_lib.drawio
+
 # UniProt per-accession caches: sequences (*.fasta, already ignored above),
 # zinc-finger tables (*_znf.tsv) and feature tables (*_feat.tsv) written by
 # 01_fetch_dbd.py / 06_extract_dbd.py. ~5,800 files, all re-fetchable from the
