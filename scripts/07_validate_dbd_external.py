@@ -97,51 +97,24 @@ PDBE_MOLECULES = "https://www.ebi.ac.uk/pdbe/api/pdb/entry/molecules"
 PDBE_SIFTS = "https://www.ebi.ac.uk/pdbe/api/mappings/uniprot"
 CIF_URL = "https://files.rcsb.org/download/{pdb}.cif"
 
-# Which Pfam families count as the DNA-binding apparatus.
+# Which Pfam families count as the DNA-binding apparatus: scripts/pfam_dbd.py.
 #
-# This endpoint returns Pfam's DESCRIPTIVE name ("Zinc finger, C2H2 type"), not
-# its short name ("zf-C2H2"), which the first version of this list assumed --
-# so it matched "GRHL1-like, C-terminal domain" through a bare "grh" and missed
-# all 722 C2H2 hits. Both lists below were built by classifying every one of
-# the 513 distinct names the fetch actually returns (--survey prints them).
+# That list used to live here. It moved when 06_extract_dbd.py started using the
+# same answer for its Pfam fallback (F5 recommendation 2) -- the lists must not
+# drift apart, because arm 1 below would then be scoring spans against a
+# different definition of "DNA-binding" than the extraction used to build them.
 #
 # Recall is measured against a DNA-binding family rather than against every
 # Pfam hit, because a span that correctly excludes a KRAB or a nuclear-receptor
 # ligand-binding domain must not be scored as having missed it.
-PFAM_DBD_GENERIC = ("dna-binding", "dna binding", "dnabinding")
-PFAM_DBD_HINTS = (
-    # zinc fingers that contact DNA
-    "zinc finger, c2h2", "c2h2-type zinc finger", "c2h2 zinc finger",
-    "zinc-finger of c2h2", "zinc-finger double domain",
-    "double treble clef zinc finger", "gata zinc finger",
-    "zic proteins zinc finger",
-    # helical / winged-helix folds
-    "homeodomain", "homeobox", "pou domain", "forkhead domain",
-    "forkhead n-terminal", "t-box", "e2f/dp family winged-helix",
-    "rel homology", "runt domain", "sand domain", "cut domain",
-    "thap domain", "'paired box' domain", "ap2 domain",
-    # basic / leucine-zipper and bHLH
-    "bzip transcription factor", "bzip maf transcription factor",
-    "basic region leucine zipper", "myogenic basic domain",
-    "hypoxia-inducible factor 1-alpha bhlh",
-    # groove binders and others
-    "hmg (high mobility group) box", "hmg-box domain", "mh1 domain",
-    "methyl-cpg binding domain", "cp2 transcription factor",
-    "srf-type transcription factor", "ets-domain",
-    "interferon regulatory factor transcription factor",
-    "tale/meis homeobox",
-)
-# Deliberately NOT DNA-binding, though they sit in these proteins and would be
-# caught by a looser rule: KRAB box, SCAN, BTB/POZ, ELM2, LIM, SAM/Pointed,
-# PAS, MH2, OAR motif, PR/SET, and the nuclear-receptor ligand-binding domain.
-# Also excluded: "SOX transcription factor" (PF12336 is SOX's C-terminal
-# region, not its HMG box) and "GRHL1-like, C-terminal domain".
+from pfam_dbd import PFAM_DBD_GENERIC, PFAM_DBD_HINTS  # noqa: E402,F401
+from pfam_dbd import is_dbd_family as _is_dbd_family   # noqa: E402
 
 CONTACT_CUTOFF_A = 4.0      # heavy-atom distance for a protein-DNA contact
 DNA_RESIDUES = {"DA", "DC", "DG", "DT", "DU", "DI"}
 
 
-# ── shared ───────────────────────────────────────────────────────────────────
+# ── shared ────────────────────────────────────────────────────────────────
 
 def _library() -> pd.DataFrame:
     df = pd.read_csv(LIBRARY_TSV, sep="\t", dtype=str, low_memory=False)
@@ -162,14 +135,6 @@ def _span(row) -> "tuple[int, int] | None":
     if pd.isna(s) or pd.isna(e):
         return None
     return int(s), int(e)
-
-
-def _is_dbd_family(name: str) -> bool:
-    low = (name or "").lower()
-    if "grhl1-like" in low or "sox transcription factor" in low:
-        return False
-    return (any(h in low for h in PFAM_DBD_GENERIC)
-            or any(h in low for h in PFAM_DBD_HINTS))
 
 
 # ── arm 1: fetch ─────────────────────────────────────────────────────────────
