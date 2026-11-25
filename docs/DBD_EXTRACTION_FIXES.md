@@ -364,9 +364,14 @@ attempt corrected one of the three.
 - The one gate that *was* corrected went too far. `coverage = covered /
   (last - first + 1)` is degenerate — `first`/`last` are min/max over the same
   intervals the numerator sums, so a single merged interval gives **1.000 by
-  construction**, at least 1,361 of 2,460 records. It silences AKNA (42.9%)
-  and NFYB
-  (36.8%) along with the GATA artifact it was meant to remove.
+  construction**, at least 1,361 of 2,460 records. In the first attempt, where
+  the 40-aa floor still measured the padded span, that silenced AKNA (42.9%)
+  and NFYB (36.8%). [clarified 2026-11-25] In what shipped, the floor measures
+  the feature extent, so both are flagged again on a 9-aa and a 7-aa extent —
+  the right gate rather than the coverage one. Measured afterwards, MECP2,
+  HMGA2 and INSM1 sit above the threshold on the feature extent (52.7%, 57.6%,
+  50.9%) and only fall below it against the padded span, so losing their flag
+  is the artifact going rather than signal; see DBD_EXTERNAL_VALIDATION.md.
 
 Also corrected here: **BCL11A was mis-attributed.** An earlier draft called it
 a cost of `MAX_SPAN_FRACTION = 0.80` and "the one unambiguous regression". Its

@@ -406,16 +406,29 @@ cases the recommendation's own reasoning turned out to be wrong.
    message that names the real quantity: KMT2C "feature extent 13 aa", AKNA
    "9 aa", NFYB "7 aa".
 
-   **The cost, measured: 5 records lose a coverage flag and nothing replaces
-   it** — MECP2/Mecp2, HMGA2/Hmga2 and INSM1, all previously flagged at
-   48—50% span coverage. Their features merge into one interval, so the
-   fragmentation measure reads 1.000, and their extents (MECP2 188 aa, HMGA2
-   59 aa, INSM1 226 aa) are all above the floor. These are the records where "the span is half padding"
-   was a true statement about a *small* feature, and no gate asks that question
-   any more. They are not errors — MECP2's MBD and INSM1's finger array are
-   correctly located — but the flag was doing something, and this is what the
-   rule costs. 10 records gain a flag in exchange (CIZ1, FOXP3, LEUTX, PLAG1,
-   SOX18, ZNF503 and orthologs), all on a feature extent under the floor.
+   **5 records lose a coverage flag, and [corrected 2026-11-25] that is the
+   artifact going, not signal.** An earlier draft of this section called it
+   "the cost, measured" and said nothing replaced the flag. Measuring the two
+   denominators against each other settles it:
+
+   | record | covered / ext | covered / span | |
+   |---|---|---|---|
+   | MECP2, Mecp2 | **52.7%** | 45.4% | artifact |
+   | HMGA2, Hmga2 | **57.6%** | 38.2% | artifact |
+   | INSM1 | **50.9%** | 44.9% | artifact |
+   | GATA1, GATA2, GATA3 | 63.3% | 45.9% | artifact (the canonical case) |
+   | MGA | **9.6%** | 9.5% | real — flagged either way |
+
+   All five sit *above* `MIN_SPAN_COVERAGE` on the feature extent and fall
+   below it only against the padded span, which puts them in the same bucket
+   as GATA1—3 — the family arm 2 showed needs MORE flank, not review. The
+   30 aa of padding on a 188-aa bracketed region was the whole difference.
+   MGA, the record this gate was written for, is 9.6% on either denominator
+   and stays flagged. So the rule costs nothing here; what looked like a cost
+   was the same artifact the change exists to remove, measured one gate over.
+
+   10 records gain a flag (CIZ1, FOXP3, LEUTX, PLAG1, SOX18, ZNF503 and
+   orthologs), all on a feature extent under the floor.
 4. **`domain` is the weakest kind** on both arms (93% recall ≥0.95; 40/51 full
    contact coverage), which is the kind whose spans rest on `KEEP_DOMAIN_HINTS`
    alone. If review effort is finite, spend it there.
@@ -483,14 +496,43 @@ aggregate can only improve on the figure measured during the first attempt.
   as 3 of the 5 zero-coverage cases show. Zero coverage is a prompt to look, not
   a verdict.
 - Two accessions failed the InterPro fetch and are absent from arm 1.
-- **NFAT needs a keep rule of its own.** Arm 2 puts NFATC2 contacts at
-  663—666, past a span ending at 580, and UniProt annotates that region as
-  IPT/TIG in NFATC4 and as nothing at all in NFATC1/2/3. All four now stop at
-  the RHD, so the family is at least consistent and all four are missing the
-  same material. No rule here reaches it: the region is unannotated in three of
-  the four entries, and Pfam calls it "Rel homology dimerisation domain", which
-  the fallback would keep — but the fallback runs only on abstention, and
-  these records have a span from RHD.
+- **A 404 from InterPro is cached as "no domains", and `--fetch` skips any
+  accession that already has a file.** So if InterPro serves a 404 for an
+  accession that does have entries — an outage or an indexing gap rather than
+  a real absence — the Pfam fallback is disabled for it with no error. The
+  exposure is narrower than it looks: an exception writes nothing and the
+  accession is retried on the next run, so only a genuine 204/404 *response*
+  caches an empty result, which is the right answer to cache. Nothing is
+  affected today (2 accessions have no entry, neither reaches the fallback),
+  and the fix if it ever matters is to record a fetch timestamp so empties can
+  be re-checked.
+- **NFAT is RHD-only, deliberately.** [decided 2026-11-25] Arm 2 puts NFATC2
+  contacts at 663—666, past every NFAT span, and UniProt annotates that
+  region as IPT/TIG in NFATC4 and as nothing at all in NFATC1/2/3. An earlier
+  draft filed this as "NFAT needs a keep rule of its own", i.e. an open gap.
+  It is now a decision: **all eight records are the RHD plus flank**, and the
+  family is treated as one.
+
+  | | RHD | span |
+  |---|---|---|
+  | NFATC1 / Nfatc1 | 410—592 / 411—593 | 395—607 / 396—608 |
+  | NFATC2 / Nfatc2 | 392—574 / 394—576 | 377—589 / 379—591 |
+  | NFATC3 / Nfatc3 | 415—596 | 400—611 |
+  | NFATC4 / Nfatc4 | 401—582 | 386—**585** |
+
+  The reasoning against a family rule: the region is unannotated in three of
+  the four human entries, so any rule reaching it would fire on the one
+  paralog that happens to annotate it — which is precisely the accident
+  ('ipt/tig' in `KEEP_DOMAIN_HINTS`) that recommendation 1 removed. Pfam calls
+  it "Rel homology dimerisation domain" and the fallback would keep it, but
+  the fallback runs only on abstention and these records have an RHD span.
+  Consistency across the family is worth more than 100 aa recovered on one
+  member, and `ANCHORS` now pins NFATC4 so the choice cannot drift silently.
+
+  One asymmetry is left on purpose: NFATC4 ends at **585** where its paralogs
+  get RHD + 15, because its IPT/TIG starts at 586 and the excluded-domain
+  pull-back shortens the flank rather than reaching into it. That is the
+  pull-back working.
 - **`MAX_SPAN_FRACTION = 0.80` sits at the boundary for at least one real
   chassis.** BCL11A's span is 666 aa, **79.8%** of the protein, and arm 2 found
   all 17 of its mapped DNA contacts (6U9Q, 1.83 Å) inside it — a verified

@@ -89,7 +89,6 @@ LIBRARY_TSV = ROOT / "library" / "module_library.tsv"
 INTERPRO_DIR = ROOT / "data" / "raw" / "interpro"
 PDB_DIR = ROOT / "data" / "raw" / "pdb"
 PROCESSED_DIR = ROOT / "data" / "processed"
-DOC_OUT = ROOT / "docs" / "DBD_EXTERNAL_VALIDATION.md"
 
 INTERPRO_API = "https://www.ebi.ac.uk/interpro/api/entry/pfam/protein/uniprot"
 PDBE_BEST = "https://www.ebi.ac.uk/pdbe/api/mappings/best_structures"

@@ -127,7 +127,8 @@ carry a count** — the C2H2/ZBTB families the fetch targets. ✓ done 2026-09-0
 
 Since F3 (2026-11-18) there is a second column beside it,
 **`dbd_zinc_finger_count`** — the fingers the *extracted span* actually kept,
-populated on 2,439 records. `zinc_finger_count` counts every `ZN_FING` feature
+populated on 2,457 records (every span except the 30 from the Pfam fallback,
+which carry NULL because their source says nothing about ZN_FING). `zinc_finger_count` counts every `ZN_FING` feature
 over the whole protein, PHD and RING fingers included, so it is an upper bound:
 ZFPM2 claims 8 for a 102-aa span of a 1,151-aa protein. eCR_predictor's
 `af3.py` prefers `dbd_zinc_finger_count` when adding Zn ions to AF3 inputs and
@@ -148,7 +149,7 @@ which folds full-length sequences).
 
 ## Known issues / QC flags
 
-- `dbd_no_identifier` (~421 DBDs): no UniProt or JASPAR hit — real data gaps in AnimalTFDB
+- `dbd_no_identifier` (404 DBDs, per library/qc_report.tsv): no UniProt or JASPAR hit — real data gaps in AnimalTFDB
 - `python` on Windows now resolves to Python 3.12.4 (PATH configured, App Execution Aliases disabled)
 - `library/build_manifest.json` conflict: always prefer server version (authoritative rebuild)
 

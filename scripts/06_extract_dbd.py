@@ -842,6 +842,12 @@ ANCHORS = {
     # The two rules F5 added, each with the record that motivated it, so neither
     # can go silently inert -- which is the real risk for the Pfam fallback,
     # since an empty data/raw/interpro/ turns it off without any error.
+    # The NFAT family is RHD-only by decision, not by accident: NFATC4 is the
+    # one paralog that annotates the IPT/TIG its siblings leave unannotated, so
+    # a rule reaching that region would fire on one of four. See
+    # docs/DBD_EXTERNAL_VALIDATION.md Limitations. 585, not 597, because the
+    # pull-back keeps the flank out of the IPT/TIG starting at 586.
+    "NFATC4": (386, 585),
     "HSF1":   (1, 135),       # REGION 15..120, flanked and clamped to 1
     "EBF1":   (3, 261),       # Pfam fallback: COE1 DNA-binding domain
 }
