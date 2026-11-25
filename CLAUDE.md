@@ -13,7 +13,7 @@ A curated **module library** of DNA-Binding Domains (DBDs), Effector Domains (ED
 and Chromatin Remodelers (CRs) for engineered transcription factor design, supporting
 MEF→iPSC reprogramming research. GitHub: https://github.com/JimYuhaoWu/eCR_mod_lib
 
-## Current state (11,486 records, last rebuilt 2026-11-18)
+## Current state (11,486 records, last rebuilt 2026-11-25)
 
 | Type | Count | Key sources |
 |---|---|---|
