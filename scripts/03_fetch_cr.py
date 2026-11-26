@@ -51,6 +51,26 @@ RAW_DIR = ROOT / "data" / "raw"
 PROCESSED_DIR = ROOT / "data" / "processed"
 MANUAL_DIR = ROOT / "data" / "manual"
 
+# `source_date` describes the SOURCE, not the run. It used to be `now[:10]`,
+# which made it a duplicate of `date_modified` and meant every re-run of this
+# script rewrote the field on all 537 CR rows -- so an unrelated change that
+# happened to re-run 03 surfaced as 537 modified records, and the real download
+# date was lost. These are the dates the local copies entered the repo, which
+# is the provenance that matters for a file read from data/manual/ rather than
+# fetched live:
+#   data/manual/EpiGenes_main.csv   cabc339, 2026-05-29
+#   data/manual/cr_curated.yaml     3cc5653, 2026-05-29
+# Both equal the value already in the committed library, so this corrects what
+# the field MEANS without changing the data. Update alongside `source_version`
+# when a source copy is refreshed.
+#
+# 01_fetch_dbd.py and 02_seed_ed.py have the same `now[:10]` pattern (3 more
+# sites). Not changed here: those need a real date per source -- AnimalTFDB v4
+# for the DBDs, and one per paper for the 11 ED screens -- which is a
+# provenance pass of its own, not a rename.
+EPIFACTORS_SOURCE_DATE = "2026-05-29"
+CURATED_SOURCE_DATE = "2026-05-29"
+
 # EpiFactors v2.0 Function values to include as CRs
 _EPIFACTORS_INCLUDE = {
     "Histone modification write",
@@ -150,7 +170,7 @@ def process_curated_crs(yaml_path: Path, session, log, dry_run: bool) -> list[di
             "source": f"Curated: {entry.get('doi', '')}",
             "source_doi": entry.get("doi"),
             "source_version": "manual_v1",
-            "source_date": now[:10],
+            "source_date": CURATED_SOURCE_DATE,
             "known_interactors": entry.get("known_interactors", ""),
             "linker_notes": entry.get("linker_notes", ""),
             "engineering_compatibility": entry.get("engineering_compatibility", ""),
@@ -278,7 +298,7 @@ def process_epifactors(df: pd.DataFrame, session, log, dry_run: bool,
             "source": "EpiFactors 2.0",
             "source_doi": "10.1093/nar/gkab1193",
             "source_version": "2.0",
-            "source_date": now[:10],
+            "source_date": EPIFACTORS_SOURCE_DATE,
             "chromatin_state_effect": effect,
             "notes": f"EpiFactors 2.0 functional annotation: {function}",
             "date_added": now,
