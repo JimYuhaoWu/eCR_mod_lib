@@ -238,6 +238,18 @@ class ModuleLibrary:
             # 04_build_library.py run would silently erase the whole extraction
             # for all 3,248 DBD rows. An update touches what it was given.
             row = {col: rec[col] for col in columns if col in rec}
+            if exists and "date_added" in row:
+                # `date_added` is written once, at insertion. Every fetch and
+                # seed script stamps it from the run clock, so an UPDATE moved
+                # it forward and the real insertion date was lost: re-running
+                # 03_fetch_cr.py reset it on all 537 CR rows from 2026-05-29 to
+                # the run date, and the same would happen to the DBDs and EDs
+                # on an 01 or 02 run. The stored value is the only copy of it,
+                # so the update must not carry the column at all.
+                #
+                # `date_modified` is deliberately left alone -- it is supposed
+                # to move when a row is rewritten.
+                row.pop("date_added")
             if exists and "sequence_aa" in row:
                 cur.execute("SELECT sequence_aa FROM modules WHERE module_id=?",
                             (rec["module_id"],))
