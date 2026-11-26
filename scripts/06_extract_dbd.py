@@ -627,6 +627,31 @@ def extract_one(seq: str, feats: dict, acc: str | None = None) -> dict:
         spans, pfam_families = hit
 
     first, last = min(s for s, _ in spans), max(e for _, e in spans)
+
+    # Rule 3: the feature coordinates have to fit the stored sequence. They
+    # come from a different place than the sequence does -- the feature table
+    # and, since F5, InterPro, which locates domains on UniProt's canonical
+    # isoform -- while the span is cut from the stored `sequence_aa`. An
+    # isoform mismatch would otherwise be published as a silently truncated
+    # span. Measured over all 2,818 extractable records across all three span
+    # sources (feature table, promoted REGION, Pfam): 0 trip this, so it is
+    # prophylactic rather than a fix for live data.
+    #
+    # It replaces an `if not sub:` test that could never fire. `lo` clamped to
+    # min(first - FLANK, len(seq)) and `hi` to len(seq), so a span beginning
+    # past the end of the sequence produced a ONE-residue `sub`, not an empty
+    # one, and was emitted as a 1-aa extraction instead of an abstention.
+    if last > len(seq):
+        return {"dbd_extraction": "none", "dbd_start": None, "dbd_end": None,
+                "dbd_sequence_aa": None, "dbd_length_aa": None,
+                "dbd_excluded_domains": None, "dbd_review_flag": 1,
+                "dbd_dropped_regions": None, "dbd_dropped_review_flag": 0,
+                "dbd_zinc_finger_count": None, "n_znf": len(zn),
+                "_pfam_families": pfam_families,
+                "_region_promoted": region_promoted,
+                "_inside": [f"feature coordinates {first}-{last} run past the "
+                            f"{len(seq)}-aa stored sequence"]}
+
     lo = max(1, min(first - FLANK, len(seq)))
     hi = min(len(seq), last + FLANK)
 
@@ -641,17 +666,12 @@ def extract_one(seq: str, feats: dict, acc: str | None = None) -> dict:
             lo = e + 1
         if s > last and s <= hi:
             hi = s - 1
-    sub = seq[lo - 1:hi] if hi >= lo else ""
-    if not sub:
-        # Feature coordinates past the end of the stored sequence -- an isoform
-        # mismatch between the FASTA and the feature table. Rule 3: report it,
-        # do not emit a zero-length "extraction".
-        return {"dbd_extraction": "none", "dbd_start": None, "dbd_end": None,
-                "dbd_sequence_aa": None, "dbd_length_aa": None,
-                "dbd_excluded_domains": None, "dbd_review_flag": 1,
-                "dbd_dropped_regions": None, "dbd_dropped_review_flag": 0,
-                "dbd_zinc_finger_count": None,
-                "n_znf": len(zn), "_inside": ["coordinates past sequence end"]}
+    # lo <= first <= last <= hi holds by construction: the pull-back above only
+    # moves `lo` to e + 1 for an excluded domain ending BEFORE `first`, and
+    # `hi` to s - 1 for one starting AFTER `last`. So `sub` is never empty and
+    # needs no guard of its own -- the guard that matters is the coordinate
+    # check above.
+    sub = seq[lo - 1:hi]
 
     # Measuring the gates
     # -------------------
