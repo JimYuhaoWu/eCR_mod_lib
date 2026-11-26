@@ -30,6 +30,7 @@ from __future__ import annotations
 import argparse
 import sys
 import time
+from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -285,7 +286,48 @@ def process_epifactors(df: pd.DataFrame, session, log, dry_run: bool,
         }
         records.append(record)
 
-    return records
+    # EpiFactors lists a few genes twice, under different accessions. HSPA1A
+    # and HSPA1B each appear under P08107 -- the entry UniProt demerged, which
+    # no longer serves a sequence -- and under their current gene-specific
+    # accessions P0DMV8 / P0DMV9. Both rows key to CR_EPIFACTORS_<gene>, so
+    # 04_build_library.py received two records for one module_id, warned that a
+    # row "carried an empty sequence_aa for a module_id that already had one",
+    # and settled it by whichever row came last. The outcome was correct
+    # (P0DMV8 / P0DMV9 with their 641-aa sequence) but it rested on row order,
+    # and the warning read like a data defect on every build. Decide it here.
+    #
+    # Preference, in order: a record with a sequence beats one without; an
+    # accession unique to this gene beats one shared with a different gene;
+    # then first seen. The second criterion carries --dry-run, where no
+    # sequence is fetched for any row. Note that a shared accession is only
+    # ever consulted for a module_id COLLISION: CDY2A/CDY2B and CDY1/CDY1B
+    # legitimately share one accession each, and being different module_ids
+    # they never reach this code.
+    acc_genes: "dict[str, set]" = defaultdict(set)
+    for r in records:
+        if r["uniprot_id"]:
+            acc_genes[r["uniprot_id"]].add(r["gene_symbol"])
+
+    def _rank(r) -> tuple:
+        shared = len(acc_genes.get(r["uniprot_id"] or "", ())) > 1
+        return (1 if r["sequence_aa"] else 0, 0 if shared else 1)
+
+    kept: dict = {}
+    for r in records:
+        prev = kept.get(r["module_id"])
+        if prev is None:
+            kept[r["module_id"]] = r
+            continue
+        win, lose = (r, prev) if _rank(r) > _rank(prev) else (prev, r)
+        log.info(f"[EpiFactors] {r['module_id']}: two source rows, keeping "
+                 f"{win['uniprot_id']} over {lose['uniprot_id']}"
+                 f"{'' if lose['sequence_aa'] else ' (no sequence)'}")
+        kept[r["module_id"]] = win
+
+    if len(kept) != len(records):
+        log.info(f"[EpiFactors] collapsed {len(records):,} rows to "
+                 f"{len(kept):,} unique module_ids")
+    return list(kept.values())
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
